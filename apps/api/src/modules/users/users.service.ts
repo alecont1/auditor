@@ -148,3 +148,37 @@ export async function deleteUser(userId: string, companyId: string): Promise<voi
 
   await prisma.user.delete({ where: { id: userId } });
 }
+
+export async function updateUser(
+  userId: string,
+  companyId: string,
+  data: { name?: string; emailNotifications?: boolean }
+): Promise<{ id: string; name: string | null; email: string; emailNotifications: boolean }> {
+  // Check if user exists and belongs to the company
+  const user = await prisma.user.findFirst({
+    where: { id: userId, companyId },
+  });
+
+  if (!user) {
+    throw new Error('User not found');
+  }
+
+  // Build update data
+  const updateData: { name?: string; emailNotifications?: boolean } = {};
+  if (data.name !== undefined) updateData.name = data.name;
+  if (data.emailNotifications !== undefined) updateData.emailNotifications = data.emailNotifications;
+
+  // Update user
+  const updatedUser = await prisma.user.update({
+    where: { id: userId },
+    data: updateData,
+    select: {
+      id: true,
+      name: true,
+      email: true,
+      emailNotifications: true,
+    },
+  });
+
+  return updatedUser;
+}

@@ -5,6 +5,7 @@ import { prisma } from '../../lib/prisma';
 import { createAnalysis, simulateProcessing } from './analysis.service';
 import { getTokenBalance } from '../tokens/tokens.service';
 import { analysisRateLimiter } from '../../lib/rate-limiter';
+import { logAudit, getClientIp } from '../../lib/audit-log';
 
 // Alias for clarity in reanalyze endpoint
 const simulateReprocessing = simulateProcessing;
@@ -66,6 +67,18 @@ analysisRoutes.post('/', analysisRateLimiter, async (c) => {
       user.userId,
       user.companyId
     );
+
+    // Log analysis creation
+    const ipAddress = getClientIp(c);
+    await logAudit({
+      userId: user.userId,
+      companyId: user.companyId,
+      action: 'ANALYSIS_CREATED',
+      entityType: 'ANALYSIS',
+      entityId: analysis.id,
+      details: { filename: validation.data.filename, testType: validation.data.testType },
+      ipAddress,
+    });
 
     return c.json({
       success: true,

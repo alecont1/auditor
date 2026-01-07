@@ -7,6 +7,7 @@ import { userRoutes } from './modules/users/users.routes.js';
 import { companyRoutes } from './modules/companies/companies.routes.js';
 import { analysisRoutes } from './modules/analysis/analysis.routes.js';
 import { tokenRoutes } from './modules/tokens/tokens.routes.js';
+import { auditRoutes } from './modules/audit/audit.routes.js';
 
 const app = new Hono();
 
@@ -26,6 +27,7 @@ app.route('/api/users', userRoutes);
 app.route('/api/companies', companyRoutes);
 app.route('/api/analysis', analysisRoutes);
 app.route('/api/tokens', tokenRoutes);
+app.route('/api/audit', auditRoutes);
 
 // Dashboard routes are handled by analysis routes
 // Stats and recent are fetched via /api/analysis with additional query params

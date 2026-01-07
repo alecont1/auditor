@@ -2,13 +2,19 @@ import { Hono } from 'hono';
 import { z } from 'zod';
 import { requireAuth, requireRole } from '../auth/auth.middleware';
 import { getUserById } from '../auth/auth.service';
-import { getUsersByCompanyId, createInvitation, deleteUser } from './users.service';
+import { getUsersByCompanyId, createInvitation, deleteUser, updateUser } from './users.service';
+import { logAudit, getClientIp } from '../../lib/audit-log';
 
 export const userRoutes = new Hono();
 
 const inviteUserSchema = z.object({
   email: z.string().email('Invalid email address'),
   role: z.enum(['ADMIN', 'ANALYST']).default('ANALYST'),
+});
+
+const updateUserSchema = z.object({
+  name: z.string().min(1, 'Name is required').max(100, 'Name too long').optional(),
+  emailNotifications: z.boolean().optional(),
 });
 
 // GET /api/users - List company users (ADMIN only)
@@ -47,6 +53,45 @@ userRoutes.get('/me', requireAuth, async (c) => {
   }
 });
 
+// PATCH /api/users/me - Update current user's profile
+userRoutes.patch('/me', requireAuth, async (c) => {
+  try {
+    const tokenUser = c.get('user');
+    const ipAddress = getClientIp(c);
+    const body = await c.req.json();
+
+    const validation = updateUserSchema.safeParse(body);
+
+    if (!validation.success) {
+      return c.json(
+        { error: 'Validation Error', message: validation.error.issues[0].message },
+        400
+      );
+    }
+
+    const updatedUser = await updateUser(tokenUser.userId, tokenUser.companyId, validation.data);
+
+    // Log profile update
+    await logAudit({
+      userId: tokenUser.userId,
+      companyId: tokenUser.companyId,
+      action: 'PROFILE_UPDATED',
+      entityType: 'USER',
+      entityId: tokenUser.userId,
+      details: { updatedFields: Object.keys(validation.data) },
+      ipAddress,
+    });
+
+    return c.json({ success: true, user: updatedUser });
+  } catch (error) {
+    console.error('Update profile error:', error);
+    if (error instanceof Error && error.message === 'User not found') {
+      return c.json({ error: 'Not Found', message: error.message }, 404);
+    }
+    return c.json({ error: 'Server Error', message: 'Failed to update profile' }, 500);
+  }
+});
+
 // GET /api/users/:id - Get user by ID (tenant-isolated)
 userRoutes.get('/:id', requireAuth, async (c) => {
   try {
@@ -74,11 +119,49 @@ userRoutes.get('/:id', requireAuth, async (c) => {
   }
 });
 
-// PUT /api/users/:id - Update user
+// PUT /api/users/:id - Update user profile
 userRoutes.put('/:id', requireAuth, async (c) => {
-  const id = c.req.param('id');
-  // TODO: Implement update user
-  return c.json({ message: `Update user ${id} endpoint` });
+  try {
+    const id = c.req.param('id');
+    const tokenUser = c.get('user');
+    const ipAddress = getClientIp(c);
+
+    // Users can only update their own profile
+    if (id !== tokenUser.userId) {
+      return c.json({ error: 'Forbidden', message: 'You can only update your own profile' }, 403);
+    }
+
+    const body = await c.req.json();
+    const validation = updateUserSchema.safeParse(body);
+
+    if (!validation.success) {
+      return c.json(
+        { error: 'Validation Error', message: validation.error.issues[0].message },
+        400
+      );
+    }
+
+    const updatedUser = await updateUser(id, tokenUser.companyId, validation.data);
+
+    // Log profile update
+    await logAudit({
+      userId: tokenUser.userId,
+      companyId: tokenUser.companyId,
+      action: 'PROFILE_UPDATED',
+      entityType: 'USER',
+      entityId: id,
+      details: { updatedFields: Object.keys(validation.data) },
+      ipAddress,
+    });
+
+    return c.json({ success: true, user: updatedUser });
+  } catch (error) {
+    console.error('Update user error:', error);
+    if (error instanceof Error && error.message === 'User not found') {
+      return c.json({ error: 'Not Found', message: error.message }, 404);
+    }
+    return c.json({ error: 'Server Error', message: 'Failed to update user' }, 500);
+  }
 });
 
 // DELETE /api/users/:id - Delete user (ADMIN only)

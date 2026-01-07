@@ -2,6 +2,7 @@ import { Hono } from 'hono';
 import { z } from 'zod';
 import { login, changePassword, acceptInvitation, validateInvitationToken } from './auth.service';
 import { requireAuth } from './auth.middleware';
+import { logAudit, getClientIp } from '../../lib/audit-log';
 
 export const authRoutes = new Hono();
 
@@ -24,6 +25,8 @@ const acceptInvitationSchema = z.object({
 
 // POST /api/auth/login
 authRoutes.post('/login', async (c) => {
+  const ipAddress = getClientIp(c);
+
   try {
     const body = await c.req.json();
     const validation = loginSchema.safeParse(body);
@@ -38,6 +41,17 @@ authRoutes.post('/login', async (c) => {
     const { email, password } = validation.data;
     const result = await login(email, password);
 
+    // Log successful login
+    await logAudit({
+      userId: result.user.id,
+      companyId: result.user.companyId,
+      action: 'LOGIN',
+      entityType: 'SESSION',
+      entityId: result.user.id,
+      details: { email: result.user.email },
+      ipAddress,
+    });
+
     return c.json(result);
   } catch (error) {
     console.error('Login error:', error);
@@ -49,7 +63,20 @@ authRoutes.post('/login', async (c) => {
 });
 
 // POST /api/auth/logout
-authRoutes.post('/logout', async (c) => {
+authRoutes.post('/logout', requireAuth, async (c) => {
+  const user = c.get('user');
+  const ipAddress = getClientIp(c);
+
+  // Log logout action
+  await logAudit({
+    userId: user.userId,
+    companyId: user.companyId,
+    action: 'LOGOUT',
+    entityType: 'SESSION',
+    entityId: user.userId,
+    ipAddress,
+  });
+
   // JWT tokens are stateless, so logout is mainly handled client-side
   // by removing the token from localStorage.
   // In a production app, you might want to add the token to a blocklist
@@ -78,9 +105,20 @@ authRoutes.post('/change-password', requireAuth, async (c) => {
     }
 
     const user = c.get('user');
+    const ipAddress = getClientIp(c);
     const { currentPassword, newPassword } = validation.data;
 
     await changePassword(user.userId, currentPassword, newPassword);
+
+    // Log password change
+    await logAudit({
+      userId: user.userId,
+      companyId: user.companyId,
+      action: 'PASSWORD_CHANGED',
+      entityType: 'USER',
+      entityId: user.userId,
+      ipAddress,
+    });
 
     return c.json({ success: true, message: 'Password changed successfully' });
   } catch (error) {
