@@ -1,5 +1,6 @@
 import { Link, useLocation, useNavigate } from 'react-router-dom';
 import { useAuth } from '../../lib/auth';
+import { Breadcrumbs } from './Breadcrumbs';
 
 interface MainLayoutProps {
   children: React.ReactNode;
@@ -142,7 +143,10 @@ export function MainLayout({ children }: MainLayoutProps) {
 
       {/* Main Content */}
       <main className="pt-16 pl-60">
-        <div className="p-8">{children}</div>
+        <div className="p-8">
+          <Breadcrumbs />
+          {children}
+        </div>
       </main>
     </div>
   );
