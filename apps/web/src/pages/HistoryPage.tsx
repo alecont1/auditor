@@ -1,6 +1,8 @@
 import { useEffect, useState } from 'react';
-import { Link } from 'react-router-dom';
+import { Link, useSearchParams } from 'react-router-dom';
 import { useAuth } from '../lib/auth';
+
+const ITEMS_PER_PAGE = 20;
 
 interface Analysis {
   id: string;
@@ -25,6 +27,10 @@ export function HistoryPage() {
   const [searchTerm, setSearchTerm] = useState('');
   const [testTypeFilter, setTestTypeFilter] = useState('');
   const [verdictFilter, setVerdictFilter] = useState('');
+  const [searchParams, setSearchParams] = useSearchParams();
+
+  // Get current page from URL, default to 1
+  const currentPage = parseInt(searchParams.get('page') || '1', 10);
 
   useEffect(() => {
     const fetchAnalyses = async () => {
@@ -72,6 +78,22 @@ export function HistoryPage() {
     }
     return true;
   });
+
+  // Pagination calculations
+  const totalPages = Math.ceil(filteredAnalyses.length / ITEMS_PER_PAGE);
+  const startIndex = (currentPage - 1) * ITEMS_PER_PAGE;
+  const endIndex = startIndex + ITEMS_PER_PAGE;
+  const paginatedAnalyses = filteredAnalyses.slice(startIndex, endIndex);
+
+  const goToPage = (page: number) => {
+    const params = new URLSearchParams(searchParams);
+    if (page === 1) {
+      params.delete('page');
+    } else {
+      params.set('page', page.toString());
+    }
+    setSearchParams(params);
+  };
 
   const getVerdictBadge = (verdict: string | null, status: string) => {
     if (!verdict) {
@@ -182,7 +204,7 @@ export function HistoryPage() {
             </tr>
           </thead>
           <tbody className="divide-y divide-slate-200">
-            {filteredAnalyses.length === 0 ? (
+            {paginatedAnalyses.length === 0 ? (
               <tr>
                 <td colSpan={6} className="px-6 py-12 text-center text-slate-600">
                   {analyses.length === 0
@@ -191,7 +213,7 @@ export function HistoryPage() {
                 </td>
               </tr>
             ) : (
-              filteredAnalyses.map((analysis) => (
+              paginatedAnalyses.map((analysis) => (
                 <tr key={analysis.id} className="hover:bg-slate-50">
                   <td className="px-6 py-4">
                     <Link
@@ -224,8 +246,46 @@ export function HistoryPage() {
         </table>
       </div>
 
-      {/* Stats */}
-      {analyses.length > 0 && (
+      {/* Pagination */}
+      {totalPages > 1 && (
+        <div className="mt-6 flex items-center justify-between">
+          <div className="text-sm text-slate-500">
+            Showing {startIndex + 1} to {Math.min(endIndex, filteredAnalyses.length)} of {filteredAnalyses.length} analyses
+          </div>
+          <div className="flex items-center gap-2">
+            <button
+              onClick={() => goToPage(currentPage - 1)}
+              disabled={currentPage === 1}
+              className="px-3 py-1 border border-slate-300 rounded-lg text-sm hover:bg-slate-50 disabled:opacity-50 disabled:cursor-not-allowed"
+            >
+              Previous
+            </button>
+            {Array.from({ length: totalPages }, (_, i) => i + 1).map((page) => (
+              <button
+                key={page}
+                onClick={() => goToPage(page)}
+                className={`px-3 py-1 border rounded-lg text-sm ${
+                  page === currentPage
+                    ? 'bg-indigo-600 text-white border-indigo-600'
+                    : 'border-slate-300 hover:bg-slate-50'
+                }`}
+              >
+                {page}
+              </button>
+            ))}
+            <button
+              onClick={() => goToPage(currentPage + 1)}
+              disabled={currentPage === totalPages}
+              className="px-3 py-1 border border-slate-300 rounded-lg text-sm hover:bg-slate-50 disabled:opacity-50 disabled:cursor-not-allowed"
+            >
+              Next
+            </button>
+          </div>
+        </div>
+      )}
+
+      {/* Stats for single page */}
+      {totalPages <= 1 && filteredAnalyses.length > 0 && (
         <div className="mt-4 text-sm text-slate-500">
           Showing {filteredAnalyses.length} of {analyses.length} analyses
         </div>
