@@ -432,3 +432,99 @@ Status: PARTIAL - Browser testing unavailable
 - Admin (Test Company): admin@testcompany.com / admin123
 - Admin (Other Company): admin@othercompany.com / admin123
 - Analyst: analyst@testcompany.com / analyst123
+
+---
+
+# Session 6 Progress Report
+
+## Session Summary
+Date: Session 6 (Coding Agent)
+Status: COMPLETE
+
+## Features Completed This Session (11 features)
+
+### Feature #123: Server-side validation matches client-side (PASSED)
+- Fixed login password validation to require 8 chars (was 6, spec requires 8)
+- Verified API returns same error messages as client for:
+  - Invalid email: "Invalid email address"
+  - Short password: "Password must be at least 8 characters"
+
+### Feature #124: Errors clear when fixed (PASSED)
+- Verified existing onChange handlers clear errors when input becomes valid
+- Both email and password fields clear errors immediately
+
+### Feature #125: Success feedback on save (PASSED)
+- Verified CompanyPage shows "Company settings saved successfully" message
+- Message displays in green emerald banner
+
+### Feature #126: Success feedback on analysis complete (PASSED)
+- Added "Analysis Complete!" banner when processing finishes
+- Shows verdict in success message
+- Auto-dismisses after 5 seconds
+
+### Feature #127: Error feedback on failure (PASSED)
+- Verified token error shows specific message with "Purchase more tokens" link
+- Uses amber color for token errors vs red for other errors
+
+### Feature #128: Loading spinner on all async operations (PASSED)
+- Added spinner to HistoryPage loading state
+- Verified NewAnalysisPage has spinner during submission
+- Verified AnalysisDetailPage shows processing spinner
+
+### Feature #129: Button disabled during submission (PASSED)
+- Verified buttons disable with loading state
+- Button text changes to "Creating Analysis..." with spinner
+- Cancel button also disabled during submission
+
+### Feature #130: Upload progress indicator (PASSED)
+- Added progress bar during analysis creation
+- Progress simulates 0-90% during API call, jumps to 100% on completion
+- Shows "Uploading file..." then "Upload complete!"
+
+### Feature #131: Toast auto-dismisses (PASSED)
+- Updated timeouts to 5 seconds (was 3 seconds)
+- Added X button to dismiss messages manually in CompanyPage and AnalysisDetailPage
+
+### Feature #132: Multiple notifications don't overlap (PASSED)
+- Current design uses inline messages that replace each other (no overlap possible)
+- Each message type (success/error) has independent display area
+
+### Feature #133: Low token balance warning (PASSED)
+- Added warning banner on Dashboard when balance < 10,000 tokens
+- Warning includes "Purchase Tokens" link to /tokens page
+- Token balance text color changes to amber when low
+
+## Files Modified This Session
+- apps/web/src/pages/LoginPage.tsx - Fixed password validation (8 chars)
+- apps/web/src/pages/HistoryPage.tsx - Added loading spinner
+- apps/web/src/pages/NewAnalysisPage.tsx - Added upload progress bar
+- apps/web/src/pages/AnalysisDetailPage.tsx - Added completion message with dismiss button
+- apps/web/src/pages/settings/CompanyPage.tsx - Added dismiss buttons to messages, updated timeouts
+- apps/web/src/pages/DashboardPage.tsx - Added low token balance warning
+- apps/web/vite.config.ts - Fixed API proxy port (3005 → 3001)
+
+## Feature Statistics
+- Total Features: 204
+- Passing: 131
+- In Progress: 0
+- Completion: 64.2%
+
+## Progress Summary
+- Started at: 121 passing (59.3%)
+- Ended at: 131 passing (64.2%)
+- Features completed: 11
+
+## Next Steps for Future Agents
+1. Start servers:
+   ```bash
+   pnpm --filter @auditeng/api dev
+   pnpm --filter @auditeng/web dev
+   ```
+2. Get next feature with `feature_get_next`
+3. Continue with N. Feedback & Notification and O. Responsive & Layout categories
+
+## Test Users
+- Super Admin: superadmin@auditeng.com / admin123
+- Admin (Test Company): admin@testcompany.com / admin123
+- Admin (Other Company): admin@othercompany.com / admin123
+- Analyst: analyst@testcompany.com / analyst123
