@@ -12,6 +12,7 @@ import { ProfilePage } from './pages/settings/ProfilePage';
 import { CompanyPage } from './pages/settings/CompanyPage';
 import { UsersPage } from './pages/settings/UsersPage';
 import { BillingPage } from './pages/settings/BillingPage';
+import { SuperAdminCompaniesPage } from './pages/super-admin/CompaniesPage';
 
 // Wrapper component for protected routes with layout
 function ProtectedWithLayout({ children, allowedRoles }: { children: React.ReactNode; allowedRoles?: Array<'SUPER_ADMIN' | 'ADMIN' | 'ANALYST'> }) {
@@ -81,11 +82,20 @@ function App() {
           } />
 
           {/* Super Admin routes - require SUPER_ADMIN role */}
-          <Route path="/super-admin/*" element={
+          <Route path="/super-admin/companies" element={
             <ProtectedWithLayout allowedRoles={['SUPER_ADMIN']}>
-              <div>Super Admin Area</div>
+              <SuperAdminCompaniesPage />
             </ProtectedWithLayout>
           } />
+          <Route path="/super-admin/metrics" element={
+            <ProtectedWithLayout allowedRoles={['SUPER_ADMIN']}>
+              <div className="p-4">
+                <h1 className="text-2xl font-bold text-slate-900 mb-4">System Metrics</h1>
+                <p className="text-slate-600">System metrics dashboard coming soon...</p>
+              </div>
+            </ProtectedWithLayout>
+          } />
+          <Route path="/super-admin" element={<Navigate to="/super-admin/companies" replace />} />
 
           {/* Default redirect */}
           <Route path="/" element={<Navigate to="/dashboard" replace />} />

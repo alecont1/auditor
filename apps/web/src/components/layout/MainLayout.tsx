@@ -33,7 +33,13 @@ export function MainLayout({ children }: MainLayoutProps) {
     { path: '/settings/billing', label: 'Billing', icon: '💳' },
   ];
 
+  const superAdminNavItems = [
+    { path: '/super-admin/companies', label: 'Companies', icon: '🏛️' },
+    { path: '/super-admin/metrics', label: 'System Metrics', icon: '📈' },
+  ];
+
   const showAdminItems = user?.role === 'ADMIN' || user?.role === 'SUPER_ADMIN';
+  const showSuperAdminItems = user?.role === 'SUPER_ADMIN';
 
   return (
     <div className="min-h-screen bg-slate-50">
@@ -88,6 +94,32 @@ export function MainLayout({ children }: MainLayoutProps) {
               </p>
               <ul className="space-y-1">
                 {adminNavItems.map((item) => (
+                  <li key={item.path}>
+                    <Link
+                      to={item.path}
+                      className={`flex items-center gap-3 px-4 py-2 rounded-lg transition-colors ${
+                        isActive(item.path)
+                          ? 'bg-indigo-50 text-indigo-600 font-medium'
+                          : 'text-slate-600 hover:bg-slate-50 hover:text-slate-900'
+                      }`}
+                    >
+                      <span>{item.icon}</span>
+                      <span>{item.label}</span>
+                    </Link>
+                  </li>
+                ))}
+              </ul>
+            </>
+          )}
+
+          {showSuperAdminItems && (
+            <>
+              <div className="my-4 border-t border-slate-200" />
+              <p className="px-4 py-2 text-xs font-semibold text-slate-400 uppercase">
+                Super Admin
+              </p>
+              <ul className="space-y-1">
+                {superAdminNavItems.map((item) => (
                   <li key={item.path}>
                     <Link
                       to={item.path}
