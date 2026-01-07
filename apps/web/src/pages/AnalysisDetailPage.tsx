@@ -600,9 +600,45 @@ export function AnalysisDetailPage() {
       <div className="bg-white rounded-lg shadow p-6">
         <h3 className="text-lg font-semibold text-slate-900 mb-4">Non-Conformities</h3>
         {analysis.nonConformities ? (
-          <pre className="bg-slate-50 p-4 rounded-lg overflow-auto text-sm">
-            {JSON.stringify(JSON.parse(analysis.nonConformities), null, 2)}
-          </pre>
+          (() => {
+            const ncList = JSON.parse(analysis.nonConformities) as Array<{
+              code: string;
+              severity: string;
+              description: string;
+              evidence: string;
+              correctiveAction: string;
+            }>;
+            if (ncList.length === 0) {
+              return <p className="text-slate-600">No non-conformities found.</p>;
+            }
+            return (
+              <div className="space-y-4">
+                {ncList.map((nc, idx) => (
+                  <div key={idx} className="border border-slate-200 rounded-lg p-4">
+                    <div className="flex items-center gap-3 mb-2">
+                      <span className="font-mono font-bold text-slate-900">{nc.code}</span>
+                      <span className={`px-2 py-0.5 text-xs font-semibold rounded ${
+                        nc.severity === 'CRITICAL' ? 'bg-red-100 text-red-800' :
+                        nc.severity === 'MAJOR' ? 'bg-orange-100 text-orange-800' :
+                        'bg-yellow-100 text-yellow-800'
+                      }`}>
+                        {nc.severity}
+                      </span>
+                    </div>
+                    <p className="text-slate-900 font-medium mb-2">{nc.description}</p>
+                    <div className="text-sm space-y-1">
+                      <p className="text-slate-600">
+                        <span className="font-medium text-slate-700">Evidence:</span> {nc.evidence}
+                      </p>
+                      <p className="text-slate-600">
+                        <span className="font-medium text-slate-700">Corrective Action:</span> {nc.correctiveAction}
+                      </p>
+                    </div>
+                  </div>
+                ))}
+              </div>
+            );
+          })()
         ) : (
           <p className="text-slate-600">No non-conformities found.</p>
         )}
