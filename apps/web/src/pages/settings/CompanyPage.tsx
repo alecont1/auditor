@@ -128,7 +128,7 @@ export function CompanyPage() {
           setTimeout(() => {
             setSuccess(null);
             setUploadProgress(null);
-          }, 3000);
+          }, 5000);
         } catch (err) {
           setError(err instanceof Error ? err.message : 'Failed to upload logo');
           setUploadProgress(null);
@@ -160,6 +160,13 @@ export function CompanyPage() {
     e.preventDefault();
     setError(null);
     setSuccess(null);
+
+    // Validate company name - reject empty or whitespace-only
+    if (!companyName.trim()) {
+      setError('Company name is required');
+      return;
+    }
+
     setSaving(true);
 
     try {
@@ -186,7 +193,7 @@ export function CompanyPage() {
       setOriginalStandard(defaultStandard);
 
       setSuccess('Company settings saved successfully');
-      setTimeout(() => setSuccess(null), 3000);
+      setTimeout(() => setSuccess(null), 5000);
     } catch (err) {
       setError(err instanceof Error ? err.message : 'Failed to save changes');
     } finally {
@@ -222,14 +229,34 @@ export function CompanyPage() {
 
         <div className="bg-white rounded-lg shadow p-6">
           {success && (
-            <div className="mb-6 p-4 bg-emerald-50 border border-emerald-200 rounded-lg text-emerald-700">
-              {success}
+            <div className="mb-6 p-4 bg-emerald-50 border border-emerald-200 rounded-lg text-emerald-700 flex items-center justify-between">
+              <span>{success}</span>
+              <button
+                type="button"
+                onClick={() => setSuccess(null)}
+                className="ml-4 text-emerald-600 hover:text-emerald-800"
+                aria-label="Dismiss"
+              >
+                <svg className="w-5 h-5" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                  <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M6 18L18 6M6 6l12 12" />
+                </svg>
+              </button>
             </div>
           )}
 
           {error && (
-            <div className="mb-6 p-4 bg-red-50 border border-red-200 rounded-lg text-red-700">
-              {error}
+            <div className="mb-6 p-4 bg-red-50 border border-red-200 rounded-lg text-red-700 flex items-center justify-between">
+              <span>{error}</span>
+              <button
+                type="button"
+                onClick={() => setError(null)}
+                className="ml-4 text-red-500 hover:text-red-700"
+                aria-label="Dismiss"
+              >
+                <svg className="w-5 h-5" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                  <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M6 18L18 6M6 6l12 12" />
+                </svg>
+              </button>
             </div>
           )}
 

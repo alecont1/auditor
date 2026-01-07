@@ -43,8 +43,8 @@ export function LoginPage() {
       setPasswordError('');
       return;
     }
-    if (value.length < 6) {
-      setPasswordError('Password must be at least 6 characters');
+    if (value.length < 8) {
+      setPasswordError('Password must be at least 8 characters');
     } else {
       setPasswordError('');
     }
@@ -60,8 +60,8 @@ export function LoginPage() {
       setEmailError('Please enter a valid email address');
       return;
     }
-    if (password.length < 6) {
-      setPasswordError('Password must be at least 6 characters');
+    if (password.length < 8) {
+      setPasswordError('Password must be at least 8 characters');
       return;
     }
 

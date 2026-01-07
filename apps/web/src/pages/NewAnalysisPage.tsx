@@ -26,6 +26,7 @@ export function NewAnalysisPage() {
   const [isSubmitting, setIsSubmitting] = useState(false);
   const [error, setError] = useState<ErrorInfo | null>(null);
   const [isDragActive, setIsDragActive] = useState(false);
+  const [uploadProgress, setUploadProgress] = useState<number | null>(null);
 
   // Estimated tokens based on file size (rough estimate)
   const estimatedTokens = selectedFile
@@ -101,8 +102,28 @@ export function NewAnalysisPage() {
 
     setIsSubmitting(true);
     setError(null);
+    setUploadProgress(0);
 
     try {
+      // Simulate upload progress for UX
+      const simulateProgress = () => {
+        return new Promise<void>((resolve) => {
+          let progress = 0;
+          const interval = setInterval(() => {
+            progress += Math.random() * 15 + 5;
+            if (progress >= 90) {
+              progress = 90;
+              clearInterval(interval);
+              resolve();
+            }
+            setUploadProgress(Math.min(progress, 90));
+          }, 100);
+        });
+      };
+
+      // Start progress simulation in parallel with the API call
+      const progressPromise = simulateProgress();
+
       const response = await fetch('/api/analysis', {
         method: 'POST',
         headers: {
@@ -115,6 +136,10 @@ export function NewAnalysisPage() {
           pdfSizeBytes: selectedFile.size,
         }),
       });
+
+      // Wait for progress simulation to complete
+      await progressPromise;
+      setUploadProgress(100);
 
       if (!response.ok) {
         const data = await response.json();
@@ -133,6 +158,7 @@ export function NewAnalysisPage() {
           isTokenError,
         });
         setIsSubmitting(false);
+        setUploadProgress(null);
         return;
       }
 
@@ -148,6 +174,7 @@ export function NewAnalysisPage() {
         isTokenError: false,
       });
       setIsSubmitting(false);
+      setUploadProgress(null);
     }
   };
 
@@ -293,6 +320,26 @@ export function NewAnalysisPage() {
               </span>
             </div>
           </div>
+
+          {/* Upload Progress */}
+          {uploadProgress !== null && (
+            <div className="mt-6">
+              <div className="flex justify-between items-center mb-2">
+                <span className="text-sm font-medium text-slate-700">
+                  {uploadProgress < 100 ? 'Uploading file...' : 'Upload complete!'}
+                </span>
+                <span className="text-sm text-slate-500">{Math.round(uploadProgress)}%</span>
+              </div>
+              <div className="h-2 bg-slate-200 rounded-full overflow-hidden">
+                <div
+                  className={`h-full transition-all duration-300 ${
+                    uploadProgress >= 100 ? 'bg-emerald-500' : 'bg-indigo-600'
+                  }`}
+                  style={{ width: `${uploadProgress}%` }}
+                />
+              </div>
+            </div>
+          )}
 
           {/* Submit Button */}
           <div className="mt-8 flex gap-4">

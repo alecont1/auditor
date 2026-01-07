@@ -113,13 +113,41 @@ export function DashboardPage() {
     );
   }
 
+  // Low token threshold for warning
+  const LOW_TOKEN_THRESHOLD = 10000;
+  const isLowTokenBalance = stats && stats.tokenBalance < LOW_TOKEN_THRESHOLD;
+
   return (
     <div>
+      {/* Low Token Balance Warning */}
+      {!loading && isLowTokenBalance && (
+        <div className="mb-6 p-4 bg-amber-50 border border-amber-200 rounded-lg">
+          <div className="flex items-center gap-3">
+            <svg className="h-6 w-6 text-amber-600 flex-shrink-0" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+              <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M12 9v2m0 4h.01m-6.938 4h13.856c1.54 0 2.502-1.667 1.732-3L13.732 4c-.77-1.333-2.694-1.333-3.464 0L3.34 16c-.77 1.333.192 3 1.732 3z" />
+            </svg>
+            <div className="flex-1">
+              <p className="font-medium text-amber-800">Low Token Balance</p>
+              <p className="text-sm text-amber-700">
+                Your token balance is low ({stats.tokenBalance.toLocaleString()} tokens remaining).
+                Purchase more tokens to continue analyzing reports.
+              </p>
+            </div>
+            <Link
+              to="/tokens"
+              className="px-4 py-2 bg-amber-600 text-white rounded-lg hover:bg-amber-700 text-sm font-medium whitespace-nowrap"
+            >
+              Purchase Tokens
+            </Link>
+          </div>
+        </div>
+      )}
+
       <div className="flex justify-between items-center mb-8">
         <h1 className="text-2xl font-bold text-slate-900">Dashboard</h1>
         <div className="flex items-center gap-4">
           <span className="text-sm text-slate-600">Token Balance:</span>
-          <span className="font-semibold text-indigo-600">
+          <span className={`font-semibold ${isLowTokenBalance ? 'text-amber-600' : 'text-indigo-600'}`}>
             {loading ? '--' : (stats?.tokenBalance ?? 0).toLocaleString()} tokens
           </span>
         </div>

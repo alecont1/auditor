@@ -37,6 +37,8 @@ export function AnalysisDetailPage() {
   const [showReanalyzeConfirm, setShowReanalyzeConfirm] = useState(false);
   const [reanalyzing, setReanalyzing] = useState(false);
   const [estimatedTokens, setEstimatedTokens] = useState<number | null>(null);
+  const [showCompletedMessage, setShowCompletedMessage] = useState(false);
+  const [wasProcessing, setWasProcessing] = useState(false);
 
   useEffect(() => {
     let pollInterval: ReturnType<typeof setInterval> | null = null;
@@ -73,6 +75,7 @@ export function AnalysisDetailPage() {
 
         // If still processing, poll for updates
         if (data.analysis.status === 'PENDING' || data.analysis.status === 'PROCESSING') {
+          setWasProcessing(true);
           if (!pollInterval) {
             pollInterval = setInterval(fetchAnalysis, 2000);
           }
@@ -81,6 +84,14 @@ export function AnalysisDetailPage() {
           pollInterval = null;
           // Refresh token balance when processing completes
           refreshTokenBalance();
+          // Show completion message if we were polling (waited for processing)
+          setShowCompletedMessage(true);
+          setTimeout(() => setShowCompletedMessage(false), 5000);
+        } else if (wasProcessing && data.analysis.status === 'COMPLETED') {
+          // Show completion message even without active poll if we knew it was processing
+          setShowCompletedMessage(true);
+          setTimeout(() => setShowCompletedMessage(false), 5000);
+          setWasProcessing(false);
         }
       } catch (err) {
         // User-friendly error for network failures
@@ -100,7 +111,7 @@ export function AnalysisDetailPage() {
         clearInterval(pollInterval);
       }
     };
-  }, [id, token]);
+  }, [id, token, wasProcessing]);
 
   const handleDelete = async () => {
     if (!analysis) return;
@@ -392,6 +403,34 @@ export function AnalysisDetailPage() {
               className="px-4 py-2 border border-red-300 text-red-600 rounded-lg hover:bg-red-50"
             >
               Cancel
+            </button>
+          </div>
+        </div>
+      )}
+
+      {/* Analysis Completed Success Message */}
+      {showCompletedMessage && analysis.status === 'COMPLETED' && (
+        <div className="bg-emerald-50 border border-emerald-200 rounded-lg p-4 mb-6">
+          <div className="flex items-center justify-between">
+            <div className="flex items-center gap-3">
+              <svg className="h-6 w-6 text-emerald-600" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M9 12l2 2 4-4m6 2a9 9 0 11-18 0 9 9 0 0118 0z" />
+              </svg>
+              <div>
+                <p className="text-lg font-medium text-emerald-900">Analysis Complete!</p>
+                <p className="text-sm text-emerald-700">
+                  Your analysis has finished processing. Verdict: <strong>{analysis.verdict}</strong>
+                </p>
+              </div>
+            </div>
+            <button
+              onClick={() => setShowCompletedMessage(false)}
+              className="text-emerald-600 hover:text-emerald-800"
+              aria-label="Dismiss"
+            >
+              <svg className="w-5 h-5" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M6 18L18 6M6 6l12 12" />
+              </svg>
             </button>
           </div>
         </div>

@@ -13,11 +13,24 @@ export const analysisRoutes = new Hono();
 // Apply auth middleware to all analysis routes
 analysisRoutes.use('*', requireAuth);
 
+// Constants
+const MAX_FILE_SIZE = 100 * 1024 * 1024; // 100MB in bytes
+
 const createAnalysisSchema = z.object({
-  filename: z.string().min(1, 'Filename is required'),
+  filename: z.string()
+    .min(1, 'Filename is required')
+    .refine(
+      (name) => name.toLowerCase().endsWith('.pdf'),
+      'Only PDF files are accepted'
+    ),
   testType: z.enum(['GROUNDING', 'MEGGER', 'THERMOGRAPHY']),
   pdfData: z.string().optional(), // Base64 encoded PDF
-  pdfSizeBytes: z.number().optional(),
+  pdfSizeBytes: z.number()
+    .optional()
+    .refine(
+      (size) => size === undefined || size <= MAX_FILE_SIZE,
+      'File too large. Maximum file size is 100MB.'
+    ),
 });
 
 // POST /api/analysis - Upload and start analysis
