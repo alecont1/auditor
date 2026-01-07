@@ -1,0 +1,34 @@
+{
+  "name": "@auditeng/api",
+  "version": "0.1.0",
+  "private": true,
+  "type": "module",
+  "scripts": {
+    "dev": "bun run --watch src/index.ts",
+    "build": "bun build src/index.ts --outdir dist --target bun",
+    "start": "bun run dist/index.js",
+    "db:generate": "prisma generate",
+    "db:migrate": "prisma migrate dev",
+    "db:push": "prisma db push",
+    "db:studio": "prisma studio",
+    "db:seed": "bun run prisma/seed.ts",
+    "typecheck": "tsc --noEmit",
+    "lint": "eslint src --ext .ts",
+    "test": "bun test"
+  },
+  "dependencies": {
+    "@anthropic-ai/sdk": "^0.25.0",
+    "@aws-sdk/client-s3": "^3.600.0",
+    "@prisma/client": "^5.15.0",
+    "hono": "^4.4.0",
+    "ioredis": "^5.4.1",
+    "jose": "^5.4.0",
+    "stripe": "^15.8.0",
+    "zod": "^3.23.8"
+  },
+  "devDependencies": {
+    "@types/bun": "^1.1.0",
+    "prisma": "^5.15.0",
+    "typescript": "^5.4.5"
+  }
+}

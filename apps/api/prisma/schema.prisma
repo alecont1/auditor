@@ -1,0 +1,187 @@
+// Prisma schema for AuditEng
+// PostgreSQL database with multi-tenant architecture
+
+generator client {
+  provider = "prisma-client-js"
+}
+
+datasource db {
+  provider = "postgresql"
+  url      = env("DATABASE_URL")
+}
+
+// Enums
+enum UserRole {
+  SUPER_ADMIN
+  ADMIN
+  ANALYST
+}
+
+enum TestType {
+  GROUNDING
+  MEGGER
+  THERMOGRAPHY
+}
+
+enum ValidationStandard {
+  NETA
+  MICROSOFT
+}
+
+enum AnalysisStatus {
+  PENDING
+  PROCESSING
+  COMPLETED
+  FAILED
+  CANCELLED
+}
+
+enum Verdict {
+  APPROVED
+  APPROVED_WITH_COMMENTS
+  REJECTED
+}
+
+enum TransactionType {
+  PURCHASE
+  CONSUMPTION
+  REFUND
+}
+
+// Company/Tenant model
+model Company {
+  id              String             @id @default(uuid())
+  name            String
+  logoUrl         String?
+  defaultStandard ValidationStandard @default(NETA)
+  tokenBalance    Int                @default(0)
+  createdAt       DateTime           @default(now())
+  updatedAt       DateTime           @updatedAt
+
+  // Relations
+  users             User[]
+  invitations       Invitation[]
+  analyses          Analysis[]
+  tokenTransactions TokenTransaction[]
+  auditLogs         AuditLog[]
+
+  @@map("companies")
+}
+
+// User model
+model User {
+  id                 String    @id @default(uuid())
+  email              String    @unique
+  passwordHash       String
+  name               String
+  role               UserRole  @default(ANALYST)
+  companyId          String?
+  emailNotifications Boolean   @default(true)
+  createdAt          DateTime  @default(now())
+  updatedAt          DateTime  @updatedAt
+  lastLoginAt        DateTime?
+
+  // Relations
+  company           Company?           @relation(fields: [companyId], references: [id], onDelete: Cascade)
+  analyses          Analysis[]
+  tokenTransactions TokenTransaction[]
+  invitationsSent   Invitation[]       @relation("InvitedBy")
+  auditLogs         AuditLog[]
+
+  @@map("users")
+}
+
+// Invitation model for user onboarding
+model Invitation {
+  id         String    @id @default(uuid())
+  email      String
+  role       UserRole  @default(ANALYST)
+  companyId  String
+  invitedById String
+  token      String    @unique
+  expiresAt  DateTime
+  acceptedAt DateTime?
+  createdAt  DateTime  @default(now())
+
+  // Relations
+  company   Company @relation(fields: [companyId], references: [id], onDelete: Cascade)
+  invitedBy User    @relation("InvitedBy", fields: [invitedById], references: [id])
+
+  @@map("invitations")
+}
+
+// Analysis model - stores PDF analysis results
+model Analysis {
+  id                String         @id @default(uuid())
+  companyId         String
+  userId            String
+  testType          TestType
+  filename          String
+  pdfUrl            String
+  pdfSizeBytes      Int
+  status            AnalysisStatus @default(PENDING)
+  verdict           Verdict?
+  score             Int?
+  overallConfidence Float?
+  tokensConsumed    Int            @default(0)
+  processingTimeMs  Int?
+  extractionData    Json?
+  nonConformities   Json?
+  requiresReview    Boolean        @default(false)
+  standardUsed      ValidationStandard
+  createdAt         DateTime       @default(now())
+  completedAt       DateTime?
+
+  // Relations
+  company           Company            @relation(fields: [companyId], references: [id], onDelete: Cascade)
+  user              User               @relation(fields: [userId], references: [id])
+  tokenTransactions TokenTransaction[]
+
+  @@index([companyId, createdAt])
+  @@index([userId, createdAt])
+  @@map("analyses")
+}
+
+// Token Transaction model
+model TokenTransaction {
+  id              String          @id @default(uuid())
+  companyId       String
+  userId          String
+  type            TransactionType
+  amount          Int             // Positive for credit, negative for debit
+  balance         Int             // Balance after transaction
+  analysisId      String?
+  stripeSessionId String?
+  packageName     String?
+  description     String
+  createdAt       DateTime        @default(now())
+
+  // Relations
+  company  Company   @relation(fields: [companyId], references: [id], onDelete: Cascade)
+  user     User      @relation(fields: [userId], references: [id])
+  analysis Analysis? @relation(fields: [analysisId], references: [id], onDelete: SetNull)
+
+  @@index([companyId, createdAt])
+  @@map("token_transactions")
+}
+
+// Audit Log model
+model AuditLog {
+  id         String   @id @default(uuid())
+  companyId  String?
+  userId     String
+  action     String
+  entityType String
+  entityId   String
+  details    Json?
+  ipAddress  String?
+  createdAt  DateTime @default(now())
+
+  // Relations
+  company Company? @relation(fields: [companyId], references: [id], onDelete: SetNull)
+  user    User     @relation(fields: [userId], references: [id])
+
+  @@index([companyId, createdAt])
+  @@index([userId, createdAt])
+  @@map("audit_logs")
+}
