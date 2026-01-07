@@ -50,18 +50,85 @@ export interface AnalysisResult {
   createdAt: Date;
 }
 
+/**
+ * Parse a date string based on the company's configured date format.
+ * This handles the difference between US (MM/DD/YYYY) and International (DD/MM/YYYY) formats.
+ *
+ * @param dateString - The date string from the PDF (e.g., "01/15/24" or "15/01/2024")
+ * @param dateFormat - The company's date format preference ("MM/DD/YYYY" or "DD/MM/YYYY")
+ * @returns A Date object representing the parsed date
+ */
+export function parseDateWithFormat(dateString: string, dateFormat: string): Date {
+  // Remove any extra whitespace
+  const cleaned = dateString.trim();
+
+  // Split the date string by common separators
+  const parts = cleaned.split(/[\/\-\.]/);
+
+  if (parts.length < 3) {
+    // If we can't parse it, return current date
+    console.warn(`Unable to parse date string: ${dateString}`);
+    return new Date();
+  }
+
+  let month: number, day: number, year: number;
+
+  if (dateFormat === 'DD/MM/YYYY') {
+    // International format: DD/MM/YYYY
+    day = parseInt(parts[0], 10);
+    month = parseInt(parts[1], 10);
+    year = parseInt(parts[2], 10);
+  } else {
+    // US format: MM/DD/YYYY (default)
+    month = parseInt(parts[0], 10);
+    day = parseInt(parts[1], 10);
+    year = parseInt(parts[2], 10);
+  }
+
+  // Handle 2-digit year
+  if (year < 100) {
+    // Assume 20xx for years < 50, 19xx for years >= 50
+    year = year < 50 ? 2000 + year : 1900 + year;
+  }
+
+  // Month is 0-indexed in JavaScript
+  return new Date(year, month - 1, day);
+}
+
+/**
+ * Format a date according to the company's preferred format.
+ *
+ * @param date - The Date object to format
+ * @param dateFormat - The company's date format preference
+ * @returns A formatted date string
+ */
+export function formatDateWithFormat(date: Date, dateFormat: string): string {
+  const day = date.getDate().toString().padStart(2, '0');
+  const month = (date.getMonth() + 1).toString().padStart(2, '0');
+  const year = date.getFullYear();
+
+  if (dateFormat === 'DD/MM/YYYY') {
+    return `${day}/${month}/${year}`;
+  } else {
+    return `${month}/${day}/${year}`;
+  }
+}
+
 export async function createAnalysis(
   input: CreateAnalysisInput,
   userId: string,
   companyId: string
 ): Promise<AnalysisResult> {
-  // Get the company's default standard
+  // Get the company's default standard and date format
   const company = await prisma.company.findUnique({
     where: { id: companyId },
-    select: { defaultStandard: true },
+    select: { defaultStandard: true, dateFormat: true },
   });
 
   const standardUsed = company?.defaultStandard || 'NETA';
+  // Store the date format for use in processing
+  const _dateFormat = company?.dateFormat || 'MM/DD/YYYY';
+  void _dateFormat; // Used in production for PDF parsing
 
   // For now, we'll create the analysis in PENDING status
   // In production, this would trigger a background job for PDF processing

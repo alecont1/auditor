@@ -6,6 +6,7 @@ export interface Company {
   name: string;
   logoUrl: string | null;
   defaultStandard: string;
+  dateFormat: string;
   tokenBalance: number;
   createdAt: Date;
   updatedAt: Date;
@@ -44,12 +45,14 @@ export async function getCompanyById(companyId: string): Promise<Company | null>
 export async function createCompany(data: {
   name: string;
   defaultStandard?: string;
+  dateFormat?: string;
   tokenBalance?: number;
 }): Promise<Company> {
   const company = await prisma.company.create({
     data: {
       name: data.name,
       defaultStandard: data.defaultStandard || 'NETA',
+      dateFormat: data.dateFormat || 'MM/DD/YYYY',
       tokenBalance: data.tokenBalance || 0,
     },
   });
@@ -66,6 +69,7 @@ export async function updateCompany(
     name?: string;
     logoUrl?: string;
     defaultStandard?: string;
+    dateFormat?: string;
   }
 ): Promise<Company> {
   const company = await prisma.company.update({

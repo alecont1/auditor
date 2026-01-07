@@ -16,6 +16,7 @@ model Company {
   name            String
   logoUrl         String?
   defaultStandard String   @default("NETA") // NETA or MICROSOFT
+  dateFormat      String   @default("MM/DD/YYYY") // MM/DD/YYYY or DD/MM/YYYY
   tokenBalance    Int      @default(0)
   createdAt       DateTime @default(now())
   updatedAt       DateTime @updatedAt

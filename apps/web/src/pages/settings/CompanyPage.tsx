@@ -12,10 +12,12 @@ export function CompanyPage() {
   const [companyName, setCompanyName] = useState('');
   const [logoUrl, setLogoUrl] = useState<string | null>(null);
   const [defaultStandard, setDefaultStandard] = useState('NETA');
+  const [dateFormat, setDateFormat] = useState('MM/DD/YYYY');
 
   // Original values for dirty checking
   const [originalName, setOriginalName] = useState('');
   const [originalStandard, setOriginalStandard] = useState('NETA');
+  const [originalDateFormat, setOriginalDateFormat] = useState('MM/DD/YYYY');
 
   // UI state
   const [success, setSuccess] = useState<string | null>(null);
@@ -23,7 +25,7 @@ export function CompanyPage() {
   const [uploadProgress, setUploadProgress] = useState<number | null>(null);
 
   // Check if form is dirty (has unsaved changes) - for future use
-  const _isDirty = companyName !== originalName || defaultStandard !== originalStandard;
+  const _isDirty = companyName !== originalName || defaultStandard !== originalStandard || dateFormat !== originalDateFormat;
   void _isDirty; // Suppress unused warning
 
   useEffect(() => {
@@ -42,12 +44,15 @@ export function CompanyPage() {
           const data = await response.json();
           const name = data.company.name || '';
           const standard = data.company.defaultStandard || 'NETA';
+          const format = data.company.dateFormat || 'MM/DD/YYYY';
           setCompanyName(name);
           setLogoUrl(data.company.logoUrl);
           setDefaultStandard(standard);
+          setDateFormat(format);
           // Store original values for dirty checking
           setOriginalName(name);
           setOriginalStandard(standard);
+          setOriginalDateFormat(format);
         }
       } catch (err) {
         console.error('Failed to fetch company:', err);
@@ -180,6 +185,7 @@ export function CompanyPage() {
         body: JSON.stringify({
           name: companyName,
           defaultStandard,
+          dateFormat,
         }),
       });
 
@@ -192,6 +198,7 @@ export function CompanyPage() {
       // Update original values after successful save
       setOriginalName(companyName);
       setOriginalStandard(defaultStandard);
+      setOriginalDateFormat(dateFormat);
 
       setSuccess('Company settings saved successfully');
       setTimeout(() => setSuccess(null), 5000);
@@ -343,6 +350,23 @@ export function CompanyPage() {
               </select>
               <p className="text-sm text-slate-500 mt-1">
                 This standard will be applied to new analyses by default
+              </p>
+            </div>
+
+            <div>
+              <label className="block text-sm font-medium text-slate-700 mb-1">
+                Date Format
+              </label>
+              <select
+                value={dateFormat}
+                onChange={(e) => setDateFormat(e.target.value)}
+                className="w-full px-3 py-2.5 min-h-11 border border-slate-300 rounded-lg focus:outline-none focus:ring-2 focus:ring-indigo-500"
+              >
+                <option value="MM/DD/YYYY">MM/DD/YYYY (US - GENSEP style)</option>
+                <option value="DD/MM/YYYY">DD/MM/YYYY (International - FNOC style)</option>
+              </select>
+              <p className="text-sm text-slate-500 mt-1">
+                Used to interpret dates in uploaded reports
               </p>
             </div>
 

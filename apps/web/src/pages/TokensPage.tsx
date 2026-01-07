@@ -1,4 +1,5 @@
 import { useEffect, useState } from 'react';
+import { useSearchParams } from 'react-router-dom';
 import { useAuth } from '../lib/auth';
 import { formatDate } from '../lib/utils';
 
@@ -21,12 +22,15 @@ interface Transaction {
 
 export function TokensPage() {
   const { token, user, refreshTokenBalance } = useAuth();
+  const [searchParams, setSearchParams] = useSearchParams();
   const [balance, setBalance] = useState<number | null>(null);
   const [packages, setPackages] = useState<Package[]>([]);
   const [transactions, setTransactions] = useState<Transaction[]>([]);
   const [loading, setLoading] = useState(true);
   const [purchasing, setPurchasing] = useState<string | null>(null);
   const [purchaseSuccess, setPurchaseSuccess] = useState<string | null>(null);
+  const [purchaseCanceled, setPurchaseCanceled] = useState(false);
+  const [stripeEnabled, setStripeEnabled] = useState(false);
   const [error, setError] = useState<string | null>(null);
 
   const fetchData = async () => {
@@ -54,6 +58,7 @@ export function TokensPage() {
 
       const packagesData = await packagesRes.json();
       setPackages(packagesData.packages);
+      setStripeEnabled(packagesData.stripeEnabled || false);
 
       const transactionsData = await transactionsRes.json();
       setTransactions(transactionsData.transactions);
@@ -66,6 +71,18 @@ export function TokensPage() {
 
   useEffect(() => {
     fetchData();
+
+    // Handle Stripe redirect success/cancel
+    if (searchParams.get('success') === 'true') {
+      setPurchaseSuccess('Payment successful! Your tokens have been added to your account.');
+      // Clear the URL params
+      setSearchParams({}, { replace: true });
+      // Refresh token balance in header
+      refreshTokenBalance();
+    } else if (searchParams.get('canceled') === 'true') {
+      setPurchaseCanceled(true);
+      setSearchParams({}, { replace: true });
+    }
   }, [token]);
 
   const handlePurchase = async (packageId: string) => {
@@ -76,8 +93,37 @@ export function TokensPage() {
 
     setPurchasing(packageId);
     setPurchaseSuccess(null);
+    setPurchaseCanceled(false);
 
     try {
+      // Try Stripe checkout first if enabled
+      if (stripeEnabled) {
+        const checkoutResponse = await fetch('/api/tokens/checkout', {
+          method: 'POST',
+          headers: {
+            Authorization: `Bearer ${token}`,
+            'Content-Type': 'application/json',
+          },
+          body: JSON.stringify({ packageId }),
+        });
+
+        if (checkoutResponse.ok) {
+          const checkoutData = await checkoutResponse.json();
+          if (checkoutData.url) {
+            // Redirect to Stripe Checkout
+            window.location.href = checkoutData.url;
+            return;
+          }
+        }
+
+        // If checkout returns 503 with useFallback, use dev purchase
+        const checkoutError = await checkoutResponse.json().catch(() => null);
+        if (!checkoutError?.useFallback) {
+          throw new Error(checkoutError?.message || 'Checkout failed');
+        }
+      }
+
+      // Fall back to simulated purchase for development
       const response = await fetch('/api/tokens/purchase', {
         method: 'POST',
         headers: {
@@ -115,7 +161,7 @@ export function TokensPage() {
       ]);
 
       setPurchaseSuccess(`Successfully purchased ${pkg?.name} package!`);
-      setTimeout(() => setPurchaseSuccess(null), 3000);
+      setTimeout(() => setPurchaseSuccess(null), 5000);
     } catch (error) {
       alert(error instanceof Error ? error.message : 'Purchase failed');
     } finally {
@@ -160,8 +206,29 @@ export function TokensPage() {
 
         {/* Purchase Success Banner */}
         {purchaseSuccess && (
-          <div className="mb-6 p-4 bg-emerald-50 border border-emerald-200 rounded-lg text-emerald-700">
-            {purchaseSuccess}
+          <div className="mb-6 p-4 bg-emerald-50 border border-emerald-200 rounded-lg text-emerald-700 flex items-center justify-between">
+            <span>{purchaseSuccess}</span>
+            <button
+              onClick={() => setPurchaseSuccess(null)}
+              className="text-emerald-600 hover:text-emerald-800"
+              aria-label="Dismiss"
+            >
+              ✕
+            </button>
+          </div>
+        )}
+
+        {/* Purchase Canceled Banner */}
+        {purchaseCanceled && (
+          <div className="mb-6 p-4 bg-amber-50 border border-amber-200 rounded-lg text-amber-700 flex items-center justify-between">
+            <span>Payment was canceled. You can try again when you're ready.</span>
+            <button
+              onClick={() => setPurchaseCanceled(false)}
+              className="text-amber-600 hover:text-amber-800"
+              aria-label="Dismiss"
+            >
+              ✕
+            </button>
           </div>
         )}
 

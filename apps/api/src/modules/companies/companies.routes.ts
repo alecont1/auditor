@@ -17,6 +17,7 @@ export const companyRoutes = new Hono();
 const createCompanySchema = z.object({
   name: z.string().min(1, 'Company name is required'),
   defaultStandard: z.enum(['NETA', 'MICROSOFT']).optional(),
+  dateFormat: z.enum(['MM/DD/YYYY', 'DD/MM/YYYY']).optional(),
   tokenBalance: z.number().optional(),
 });
 
@@ -24,6 +25,7 @@ const updateCompanySchema = z.object({
   name: z.string().min(1).optional(),
   logoUrl: z.string().optional(),
   defaultStandard: z.enum(['NETA', 'MICROSOFT']).optional(),
+  dateFormat: z.enum(['MM/DD/YYYY', 'DD/MM/YYYY']).optional(),
 });
 
 const deleteCompanySchema = z.object({
