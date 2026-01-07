@@ -319,13 +319,14 @@ function generateExtractionData(
       const forceCleanGround = filename?.toUpperCase().includes('CLEAN');
       const forceMajorGround = filename?.toUpperCase().includes('MAJOR_ISSUE');
       const forceCriticalGround = filename?.toUpperCase().includes('HIGH_RESISTANCE');
+      const forceMinorGround = filename?.toUpperCase().includes('EXPIRING_TODAY');
 
       // Generate ground resistance value based on scenario
       let groundResistance: number;
       if (forceCriticalGround) {
         // Force high resistance for REJECTED verdict
         groundResistance = 6 + Math.random() * 4; // 6-10 ohm (fails)
-      } else if (forceCleanGround || forceMajorGround) {
+      } else if (forceCleanGround || forceMajorGround || forceMinorGround) {
         // Force low resistance for APPROVED scenarios
         groundResistance = 0.5 + Math.random() * 3; // 0.5-3.5 ohm (passes)
       } else {
@@ -338,16 +339,16 @@ function generateExtractionData(
 
       // Watermark detection based on scenario
       let hasWatermark: boolean;
-      if (forceCleanGround) {
-        hasWatermark = true; // Force watermark present for APPROVED
+      if (forceCleanGround || forceMinorGround) {
+        hasWatermark = true; // Force watermark present for APPROVED/MINOR scenarios
       } else if (forceMajorGround) {
         hasWatermark = false; // Force watermark missing for APPROVED_WITH_COMMENTS
       } else {
         hasWatermark = Math.random() < 0.85; // 85% chance present
       }
 
-      // Technician signature - force present for clean, otherwise 90% chance
-      const hasTechnicianSignature = forceCleanGround ? true : Math.random() < 0.9;
+      // Technician signature - force present for clean/minor, otherwise 90% chance
+      const hasTechnicianSignature = (forceCleanGround || forceMinorGround) ? true : Math.random() < 0.9;
 
       return {
         ...baseData,
@@ -452,18 +453,23 @@ export async function simulateProcessing(analysisId: string) {
       // Simulate extraction data with calibration info
       const testDate = new Date().toISOString().split('T')[0]; // Today's date in YYYY-MM-DD format
 
-      // Check for test scenario flags that require valid calibration
+      // Check for test scenario flags that control calibration status
       const forceValidCalibration = analysis.filename?.toUpperCase().includes('CLEAN') ||
                                     analysis.filename?.toUpperCase().includes('MAJOR_ISSUE');
+      const forceExpiringToday = analysis.filename?.toUpperCase().includes('EXPIRING_TODAY');
 
       // Simulate different calibration scenarios:
       // - Force valid if CLEAN or MAJOR_ISSUE flag (to ensure APPROVED/APPROVED_WITH_COMMENTS)
+      // - Force expiring today if EXPIRING_TODAY flag (to trigger GND-003 MINOR)
       // - 70% chance: valid calibration (expires 6 months from now)
       // - 15% chance: expiring today
       // - 15% chance: expired (expired yesterday)
       const random = Math.random();
       let calibrationExpiryDate: string;
-      if (forceValidCalibration || random < 0.70) {
+      if (forceExpiringToday) {
+        // Force calibration to expire today (triggers GND-003 MINOR)
+        calibrationExpiryDate = testDate;
+      } else if (forceValidCalibration || random < 0.70) {
         // Valid: expires 6 months from now
         const futureDate = new Date();
         futureDate.setMonth(futureDate.getMonth() + 6);

@@ -617,10 +617,10 @@ export function AnalysisDetailPage() {
                   <div key={idx} className="border border-slate-200 rounded-lg p-4">
                     <div className="flex items-center gap-3 mb-2">
                       <span className="font-mono font-bold text-slate-900">{nc.code}</span>
-                      <span className={`px-2 py-0.5 text-xs font-semibold rounded ${
-                        nc.severity === 'CRITICAL' ? 'bg-red-100 text-red-800' :
-                        nc.severity === 'MAJOR' ? 'bg-orange-100 text-orange-800' :
-                        'bg-yellow-100 text-yellow-800'
+                      <span className={`px-2 py-0.5 text-xs font-semibold rounded border ${
+                        nc.severity === 'CRITICAL' ? 'bg-red-100 text-red-800 border-red-300' :
+                        nc.severity === 'MAJOR' ? 'bg-orange-100 text-orange-800 border-orange-300' :
+                        'bg-yellow-100 text-yellow-800 border-yellow-300'
                       }`}>
                         {nc.severity}
                       </span>
