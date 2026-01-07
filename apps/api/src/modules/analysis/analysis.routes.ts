@@ -4,6 +4,7 @@ import { requireAuth } from '../auth/auth.middleware';
 import { prisma } from '../../lib/prisma';
 import { createAnalysis, simulateProcessing } from './analysis.service';
 import { getTokenBalance } from '../tokens/tokens.service';
+import { analysisRateLimiter } from '../../lib/rate-limiter';
 
 // Alias for clarity in reanalyze endpoint
 const simulateReprocessing = simulateProcessing;
@@ -34,7 +35,8 @@ const createAnalysisSchema = z.object({
 });
 
 // POST /api/analysis - Upload and start analysis
-analysisRoutes.post('/', async (c) => {
+// Apply rate limiting: 10 requests per minute per IP
+analysisRoutes.post('/', analysisRateLimiter, async (c) => {
   try {
     const user = c.get('user');
     const body = await c.req.json();
