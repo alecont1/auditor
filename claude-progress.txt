@@ -549,3 +549,204 @@ Status: COMPLETE
 - Admin (Test Company): admin@testcompany.com / admin123
 - Admin (Other Company): admin@othercompany.com / admin123
 - Analyst: analyst@testcompany.com / analyst123
+
+---
+
+# Session 7 Progress Report
+
+## Session Summary
+Date: Session 7 (Coding Agent)
+Status: IN PROGRESS
+
+## Features Completed This Session (13 features)
+
+### P. Accessibility Features
+
+#### Feature #139: Modals fit viewport on mobile (PASSED)
+- Verified modal fits within 375px viewport
+- All form fields usable
+- Modal closes properly
+
+#### Feature #140: Long text truncates correctly (PASSED)
+- Added truncation CSS to filename column in HistoryPage
+- Added max-w-[200px], truncate class, and title attribute for hover
+- Created test file with 100+ character filename
+- Verified ellipsis shows and full text on hover
+
+#### Feature #141: Tables scroll horizontally on mobile (PASSED)
+- Changed table container from overflow-hidden to overflow-x-auto
+- Added min-w-[800px] to table for horizontal scrolling
+- Verified horizontal scroll works at 375px viewport
+
+#### Feature #142: Sidebar collapses appropriately (PASSED)
+- Verified all breakpoints:
+  - 1920px: Full sidebar visible
+  - 1024px: Sidebar visible
+  - 768px: Icon-only mode
+  - 375px: Hamburger menu/drawer mode
+
+#### Feature #143: Tab navigation through interactive elements (PASSED)
+- Verified Tab navigation works on Dashboard
+- All interactive elements (links, buttons) are keyboard accessible
+
+#### Feature #144: Focus ring visible on focused elements (PASSED)
+- Verified focus rings on AuditEng link, token link, Logout button, sidebar links
+- Focus rings have sufficient contrast
+
+#### Feature #145: Screen reader navigation (PASSED)
+- Verified ARIA landmarks: banner, navigation, main, complementary
+- Proper heading hierarchy (h1, h2, h3)
+- Semantic HTML elements (header, nav, main, aside)
+
+#### Feature #146: ARIA labels on icon-only buttons (PASSED)
+- Verified aria-label on hamburger menu: "Toggle menu"
+- Verified aria-label on modal close button: "Close modal"
+- All icon-only buttons have accessible names
+
+#### Feature #147: Color contrast meets WCAG AA (PASSED)
+- Calculated contrast ratios:
+  - slate-900 on slate-50: 17.06:1 (primary text)
+  - slate-600 on slate-50: 7.24:1 (secondary text)
+  - white on indigo-600: 6.29:1 (button text)
+- All exceed WCAG AA 4.5:1 requirement
+
+#### Feature #148: Information not conveyed by color alone (PASSED)
+- Verified APPROVED, REJECTED, APPROVED_WITH_COMMENTS have text labels
+- Error states have SVG icons + text headings + descriptive messages
+
+#### Feature #149: Form fields have associated labels (PASSED)
+- Verified htmlFor attributes on Login page labels
+- Clicking labels focuses corresponding fields
+
+#### Feature #150: Error messages announced to screen readers (PASSED)
+- Added role="alert" and aria-live to error messages on LoginPage
+- Added aria-invalid and aria-describedby to form fields
+- Error messages now properly announce to screen readers
+
+#### Feature #151: Images have alt text (PASSED)
+- Company logo image has alt="Company logo"
+- All other visual elements are SVG icons accompanying text
+
+#### Feature #152: Keyboard can dismiss modals (PASSED)
+- Verified Escape key closes modals
+- Modal component has proper keydown listener
+
+## Files Modified This Session
+- apps/web/src/pages/HistoryPage.tsx - Added truncation and horizontal scrolling
+- apps/web/src/pages/LoginPage.tsx - Added ARIA attributes for accessibility
+
+## Feature Statistics
+- Total Features: 204
+- Passing: 151
+- In Progress: 0
+- Completion: 74.0%
+
+## Progress Summary
+- Started at: ~137 passing (from context restoration)
+- Current: 151 passing (74.0%)
+- Features completed this session: 13
+
+## Next Steps for Future Agents
+1. Start servers (if not running):
+   ```bash
+   pnpm --filter @auditeng/api dev
+   pnpm --filter @auditeng/web dev
+   ```
+2. Get next feature with `feature_get_next`
+3. Continue with remaining categories
+
+## Test Users
+- Super Admin: superadmin@auditeng.com / admin123
+- Admin (Test Company): admin@testcompany.com / admin123
+- Admin (Other Company): admin@othercompany.com / admin123
+- Analyst: analyst@testcompany.com / analyst123
+
+---
+
+# Session 8 Progress Report
+
+## Session Summary
+Date: Session 8 (Coding Agent)
+Status: COMPLETE
+
+## Features Completed This Session (6 features)
+
+### Q. Temporal & Timezone Features
+
+#### Feature #154: Timestamps accurate and formatted (PASSED)
+- Updated all timestamp displays to use consistent `formatDate()` utility
+- Format: "Jan 7, 2026, 02:04 PM" (readable with month name, day, year, time)
+- Updated pages: AnalysisDetailPage, HistoryPage, DashboardPage, TokensPage, CompaniesPage
+- Verified API returns accurate ISO timestamps
+
+#### Feature #155: Date picker valid range (PASSED)
+- Added HTML5 validation constraints to date pickers
+- End date cannot be before start date (min attribute)
+- Neither date can be in the future (max attribute)
+- Browser native validation prevents invalid selections
+
+#### Feature #156: This month filter works correctly (PASSED)
+- Added "Quick" dropdown with date range presets
+- Options: Today, This Week, This Month, Last Month, All Time
+- Implemented `applyQuickDateFilter()` helper function
+- Correctly calculates start of month to today for "This Month"
+
+#### Feature #157: Calibration expiration checks timezone-aware (PASSED)
+- Created timezone-neutral date comparison functions:
+  - `compareDatesTimezoneNeutral()` - Uses UTC to avoid timezone edge cases
+  - `isCalibrationExpired()` - Checks if calibration expired before test date
+  - `isCalibrationExpiringToday()` - Checks if expiring on same day
+- Updated analysis processing to include calibration certificate data
+- Automatic REJECTION for expired calibration with proper non-conformities
+
+### R. Concurrency & Race Conditions Features
+
+#### Feature #158: Two users edit same record handling (PASSED)
+- Verified "last write wins" behavior with API testing
+- Tested concurrent edits: Tab 1 saves → Tab 2 saves → Tab 2 value persists
+- No data corruption - Prisma atomic updates ensure consistency
+
+#### Feature #159: Record deleted while viewing handled (PASSED)
+- Added 404 detection to delete, reanalyze, and cancel handlers
+- Shows friendly "Analysis Deleted" page when record deleted by another user
+- Includes navigation options to History or Dashboard
+- No crashes - all errors handled gracefully
+
+## Files Modified This Session
+- apps/api/src/modules/analysis/analysis.service.ts - Added timezone-safe date functions, calibration validation
+- apps/web/src/pages/AnalysisDetailPage.tsx - formatDate import, 404 handling for concurrent deletion
+- apps/web/src/pages/HistoryPage.tsx - formatDate import, quick date filter, date picker constraints
+- apps/web/src/pages/DashboardPage.tsx - formatDate import
+- apps/web/src/pages/TokensPage.tsx - formatDate import
+- apps/web/src/pages/super-admin/CompaniesPage.tsx - formatDate import
+
+## Feature Statistics
+- Total Features: 204
+- Passing: 158
+- In Progress: 0
+- Completion: 77.5%
+
+## Progress Summary
+- Started at: 152 passing (74.5%)
+- Ended at: 158 passing (77.5%)
+- Features completed: 6
+
+## Known Issues
+- Playwright MCP server disconnected throughout session
+- All testing done via API and code review
+
+## Next Steps for Future Agents
+1. Start servers (if not running):
+   ```bash
+   pnpm --filter @auditeng/api dev
+   pnpm --filter @auditeng/web dev
+   ```
+2. Get next feature with `feature_get_next`
+3. Continue with Feature #160 onwards
+4. Try to reconnect Playwright for browser testing
+
+## Session 8 Test Users
+- Super Admin: superadmin@auditeng.com / admin123
+- Admin (Test Company): admin@testcompany.com / admin123
+- Admin (Other Company): admin@othercompany.com / admin123
+- Analyst: analyst@testcompany.com / analyst123

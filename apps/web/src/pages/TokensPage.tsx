@@ -1,5 +1,6 @@
 import { useEffect, useState } from 'react';
 import { useAuth } from '../lib/auth';
+import { formatDate } from '../lib/utils';
 
 interface Package {
   id: string;
@@ -142,7 +143,7 @@ export function TokensPage() {
             <p className="text-red-700 mb-4">{error}</p>
             <button
               onClick={fetchData}
-              className="px-4 py-2 bg-red-600 text-white rounded-lg hover:bg-red-700 transition-colors"
+              className="px-4 py-2.5 min-h-11 bg-red-600 text-white rounded-lg hover:bg-red-700 transition-colors"
             >
               Try Again
             </button>
@@ -187,7 +188,7 @@ export function TokensPage() {
               <button
                 onClick={() => handlePurchase(pkg.id)}
                 disabled={purchasing !== null}
-                className="w-full mt-4 py-2 bg-indigo-600 text-white rounded-lg hover:bg-indigo-700 transition-colors disabled:opacity-50 disabled:cursor-not-allowed"
+                className="w-full mt-4 py-2.5 min-h-11 bg-indigo-600 text-white rounded-lg hover:bg-indigo-700 transition-colors disabled:opacity-50 disabled:cursor-not-allowed"
               >
                 {purchasing === pkg.id ? 'Processing...' : 'Purchase'}
               </button>
@@ -215,7 +216,7 @@ export function TokensPage() {
                     <div>
                       <p className="font-medium text-slate-900">{tx.description}</p>
                       <p className="text-sm text-slate-500">
-                        {new Date(tx.createdAt).toLocaleString()}
+                        {formatDate(tx.createdAt)}
                       </p>
                     </div>
                     <div className="text-right">

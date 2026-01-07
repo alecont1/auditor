@@ -1,6 +1,7 @@
 import { useEffect, useState } from 'react';
 import { Link, useSearchParams } from 'react-router-dom';
 import { useAuth } from '../lib/auth';
+import { formatDate } from '../lib/utils';
 
 const ITEMS_PER_PAGE = 20;
 
@@ -108,6 +109,45 @@ export function HistoryPage() {
     setEndDate('');
     setSortBy('date');
     setSortOrder('desc');
+  };
+
+  // Quick date filter helpers
+  const applyQuickDateFilter = (filter: string) => {
+    const today = new Date();
+    const todayStr = today.toISOString().split('T')[0];
+
+    switch (filter) {
+      case 'today': {
+        setStartDate(todayStr);
+        setEndDate(todayStr);
+        break;
+      }
+      case 'this-week': {
+        const startOfWeek = new Date(today);
+        startOfWeek.setDate(today.getDate() - today.getDay());
+        setStartDate(startOfWeek.toISOString().split('T')[0]);
+        setEndDate(todayStr);
+        break;
+      }
+      case 'this-month': {
+        const startOfMonth = new Date(today.getFullYear(), today.getMonth(), 1);
+        setStartDate(startOfMonth.toISOString().split('T')[0]);
+        setEndDate(todayStr);
+        break;
+      }
+      case 'last-month': {
+        const startOfLastMonth = new Date(today.getFullYear(), today.getMonth() - 1, 1);
+        const endOfLastMonth = new Date(today.getFullYear(), today.getMonth(), 0);
+        setStartDate(startOfLastMonth.toISOString().split('T')[0]);
+        setEndDate(endOfLastMonth.toISOString().split('T')[0]);
+        break;
+      }
+      case 'all': {
+        setStartDate('');
+        setEndDate('');
+        break;
+      }
+    }
   };
 
   const toggleSort = (field: 'date' | 'score') => {
@@ -350,7 +390,7 @@ export function HistoryPage() {
         <p className="text-red-700 mb-4">{error}</p>
         <button
           onClick={fetchAnalyses}
-          className="px-4 py-2 bg-red-600 text-white rounded-lg hover:bg-red-700 transition-colors"
+          className="px-4 py-2.5 min-h-11 bg-red-600 text-white rounded-lg hover:bg-red-700 transition-colors"
         >
           Try Again
         </button>
@@ -368,7 +408,7 @@ export function HistoryPage() {
           <select
             value={testTypeFilter}
             onChange={(e) => setTestTypeFilter(e.target.value)}
-            className="px-3 py-2 border border-slate-300 rounded-lg"
+            className="px-3 py-2.5 min-h-11 border border-slate-300 rounded-lg"
           >
             <option value="">All Test Types</option>
             <option value="GROUNDING">Grounding</option>
@@ -378,7 +418,7 @@ export function HistoryPage() {
           <select
             value={verdictFilter}
             onChange={(e) => setVerdictFilter(e.target.value)}
-            className="px-3 py-2 border border-slate-300 rounded-lg"
+            className="px-3 py-2.5 min-h-11 border border-slate-300 rounded-lg"
           >
             <option value="">All Verdicts</option>
             <option value="APPROVED">Approved</option>
@@ -392,7 +432,8 @@ export function HistoryPage() {
                 type="date"
                 value={startDate}
                 onChange={(e) => setStartDate(e.target.value)}
-                className="px-3 py-2 border border-slate-300 rounded-lg"
+                max={endDate || new Date().toISOString().split('T')[0]}
+                className="px-3 py-2.5 min-h-11 border border-slate-300 rounded-lg"
               />
             </div>
             <div className="flex flex-col">
@@ -401,20 +442,41 @@ export function HistoryPage() {
                 type="date"
                 value={endDate}
                 onChange={(e) => setEndDate(e.target.value)}
-                className="px-3 py-2 border border-slate-300 rounded-lg"
+                min={startDate || undefined}
+                max={new Date().toISOString().split('T')[0]}
+                className="px-3 py-2.5 min-h-11 border border-slate-300 rounded-lg"
               />
             </div>
+          </div>
+          <div className="flex flex-col">
+            <label className="text-xs text-slate-500 mb-1">Quick</label>
+            <select
+              onChange={(e) => {
+                if (e.target.value) {
+                  applyQuickDateFilter(e.target.value);
+                  e.target.value = '';
+                }
+              }}
+              className="px-3 py-2.5 min-h-11 border border-slate-300 rounded-lg"
+            >
+              <option value="">Select...</option>
+              <option value="today">Today</option>
+              <option value="this-week">This Week</option>
+              <option value="this-month">This Month</option>
+              <option value="last-month">Last Month</option>
+              <option value="all">All Time</option>
+            </select>
           </div>
           <input
             type="text"
             placeholder="Search by filename..."
             value={searchTerm}
             onChange={(e) => setSearchTerm(e.target.value)}
-            className="px-3 py-2 border border-slate-300 rounded-lg flex-1 min-w-[200px]"
+            className="px-3 py-2.5 min-h-11 border border-slate-300 rounded-lg flex-1 min-w-[200px]"
           />
           <button
             onClick={clearFilters}
-            className="px-4 py-2 text-slate-600 hover:text-slate-900"
+            className="px-4 py-2.5 min-h-11 text-slate-600 hover:text-slate-900 hover:bg-slate-100 rounded-lg transition-colors"
           >
             Clear Filters
           </button>
@@ -430,7 +492,7 @@ export function HistoryPage() {
           <div className="flex items-center gap-3">
             <button
               onClick={clearSelection}
-              className="px-3 py-1.5 text-slate-600 hover:text-slate-900"
+              className="px-4 py-2.5 min-h-11 text-slate-600 hover:text-slate-900 hover:bg-slate-100 rounded-lg transition-colors"
             >
               Clear Selection
             </button>
@@ -438,7 +500,7 @@ export function HistoryPage() {
               <button
                 onClick={() => setShowExportDropdown(!showExportDropdown)}
                 disabled={exporting}
-                className="px-4 py-2 bg-indigo-600 text-white rounded-lg hover:bg-indigo-700 transition-colors disabled:opacity-50 flex items-center gap-2"
+                className="px-4 py-2.5 min-h-11 bg-indigo-600 text-white rounded-lg hover:bg-indigo-700 transition-colors disabled:opacity-50 flex items-center gap-2"
               >
                 {exporting ? 'Exporting...' : 'Bulk Export'}
                 <svg className="w-4 h-4" fill="none" stroke="currentColor" viewBox="0 0 24 24">
@@ -449,13 +511,13 @@ export function HistoryPage() {
                 <div className="absolute right-0 mt-2 w-40 bg-white rounded-lg shadow-lg border border-slate-200 py-1 z-10">
                   <button
                     onClick={() => handleBulkExport('json')}
-                    className="w-full px-4 py-2 text-left hover:bg-slate-50 text-sm"
+                    className="w-full px-4 py-2.5 min-h-11 text-left hover:bg-slate-50 text-sm"
                   >
                     Export as JSON
                   </button>
                   <button
                     onClick={() => handleBulkExport('csv')}
-                    className="w-full px-4 py-2 text-left hover:bg-slate-50 text-sm"
+                    className="w-full px-4 py-2.5 min-h-11 text-left hover:bg-slate-50 text-sm"
                   >
                     Export as CSV
                   </button>
@@ -467,8 +529,8 @@ export function HistoryPage() {
       )}
 
       {/* Table */}
-      <div className="bg-white rounded-lg shadow overflow-hidden">
-        <table className="w-full">
+      <div className="bg-white rounded-lg shadow overflow-x-auto">
+        <table className="w-full min-w-[800px]">
           <thead className="bg-slate-50">
             <tr>
               <th className="px-4 py-3 text-left">
@@ -549,10 +611,11 @@ export function HistoryPage() {
                       className="w-4 h-4 rounded border-slate-300 text-indigo-600 focus:ring-indigo-500"
                     />
                   </td>
-                  <td className="px-6 py-4">
+                  <td className="px-6 py-4 max-w-[200px]">
                     <Link
                       to={`/analysis/${analysis.id}`}
-                      className="text-indigo-600 hover:text-indigo-800 font-medium"
+                      className="text-indigo-600 hover:text-indigo-800 font-medium block truncate"
+                      title={analysis.filename}
                     >
                       {analysis.filename}
                     </Link>
@@ -563,7 +626,7 @@ export function HistoryPage() {
                     {analysis.score !== null ? `${analysis.score}%` : '--'}
                   </td>
                   <td className="px-6 py-4 text-sm text-slate-600">
-                    {new Date(analysis.createdAt).toLocaleDateString()}
+                    {formatDate(analysis.createdAt)}
                   </td>
                   <td className="px-6 py-4">
                     <Link
@@ -590,7 +653,7 @@ export function HistoryPage() {
             <button
               onClick={() => goToPage(validPage - 1)}
               disabled={validPage === 1}
-              className="px-3 py-1 border border-slate-300 rounded-lg text-sm hover:bg-slate-50 disabled:opacity-50 disabled:cursor-not-allowed"
+              className="px-4 py-2 min-h-11 border border-slate-300 rounded-lg text-sm hover:bg-slate-50 disabled:opacity-50 disabled:cursor-not-allowed"
             >
               Previous
             </button>
@@ -598,7 +661,7 @@ export function HistoryPage() {
               <button
                 key={page}
                 onClick={() => goToPage(page)}
-                className={`px-3 py-1 border rounded-lg text-sm ${
+                className={`px-4 py-2 min-h-11 min-w-11 border rounded-lg text-sm ${
                   page === validPage
                     ? 'bg-indigo-600 text-white border-indigo-600'
                     : 'border-slate-300 hover:bg-slate-50'
@@ -610,7 +673,7 @@ export function HistoryPage() {
             <button
               onClick={() => goToPage(validPage + 1)}
               disabled={validPage === totalPages}
-              className="px-3 py-1 border border-slate-300 rounded-lg text-sm hover:bg-slate-50 disabled:opacity-50 disabled:cursor-not-allowed"
+              className="px-4 py-2 min-h-11 border border-slate-300 rounded-lg text-sm hover:bg-slate-50 disabled:opacity-50 disabled:cursor-not-allowed"
             >
               Next
             </button>

@@ -1,6 +1,7 @@
 import { useEffect, useState } from 'react';
 import { useAuth } from '../../lib/auth';
 import { PasswordConfirmModal } from '../../components/PasswordConfirmModal';
+import { formatDate } from '../../lib/utils';
 
 interface Company {
   id: string;
@@ -100,7 +101,7 @@ export function SuperAdminCompaniesPage() {
     <div>
       <div className="flex justify-between items-center mb-8">
         <h1 className="text-2xl font-bold text-slate-900">Company Management</h1>
-        <button className="px-4 py-2 bg-indigo-600 text-white rounded-lg hover:bg-indigo-700">
+        <button className="px-4 py-2.5 min-h-11 bg-indigo-600 text-white rounded-lg hover:bg-indigo-700">
           + Add Company
         </button>
       </div>
@@ -135,7 +136,7 @@ export function SuperAdminCompaniesPage() {
                   <td className="px-6 py-4 text-sm text-slate-600">{company._count?.users || 0}</td>
                   <td className="px-6 py-4 text-sm text-slate-600">{company._count?.analyses || 0}</td>
                   <td className="px-6 py-4 text-sm text-slate-600">
-                    {new Date(company.createdAt).toLocaleDateString()}
+                    {formatDate(company.createdAt)}
                   </td>
                   <td className="px-6 py-4">
                     <div className="flex gap-2">

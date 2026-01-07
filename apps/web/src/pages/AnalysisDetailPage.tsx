@@ -1,6 +1,7 @@
 import { useParams, useNavigate } from 'react-router-dom';
 import { useEffect, useState } from 'react';
 import { useAuth } from '../lib/auth';
+import { formatDate } from '../lib/utils';
 
 interface Analysis {
   id: string;
@@ -125,6 +126,13 @@ export function AnalysisDetailPage() {
         },
       });
 
+      // Handle 404 gracefully - record was already deleted
+      if (response.status === 404) {
+        setShowDeleteConfirm(false);
+        setError('This analysis has been deleted by another user.');
+        return;
+      }
+
       if (!response.ok) {
         const data = await response.json();
         throw new Error(data.message || 'Failed to delete analysis');
@@ -151,6 +159,13 @@ export function AnalysisDetailPage() {
           Authorization: `Bearer ${token}`,
         },
       });
+
+      // Handle 404 gracefully - record was deleted
+      if (response.status === 404) {
+        setShowReanalyzeConfirm(false);
+        setError('This analysis has been deleted by another user.');
+        return;
+      }
 
       const data = await response.json();
 
@@ -195,6 +210,12 @@ export function AnalysisDetailPage() {
         },
       });
 
+      // Handle 404 gracefully - record was deleted
+      if (response.status === 404) {
+        setError('This analysis has been deleted by another user.');
+        return;
+      }
+
       const data = await response.json();
 
       if (!response.ok) {
@@ -225,27 +246,32 @@ export function AnalysisDetailPage() {
   }
 
   if (error) {
-    // Check if it's a "not found" error or a network error
+    // Check if it's a "not found" error, "deleted by another user", or a network error
     const isNotFound = error === 'Analysis not found';
+    const isDeletedByAnotherUser = error.includes('deleted by another user');
 
-    if (isNotFound) {
+    if (isNotFound || isDeletedByAnotherUser) {
       return (
         <div className="bg-white rounded-lg shadow p-8 text-center">
-          <div className="text-6xl mb-4">🔒</div>
-          <h1 className="text-2xl font-bold text-slate-900 mb-2">Analysis Not Found</h1>
+          <div className="text-6xl mb-4">{isDeletedByAnotherUser ? '⚠️' : '🔒'}</div>
+          <h1 className="text-2xl font-bold text-slate-900 mb-2">
+            {isDeletedByAnotherUser ? 'Analysis Deleted' : 'Analysis Not Found'}
+          </h1>
           <p className="text-slate-600 mb-6">
-            The analysis you're looking for doesn't exist or you don't have permission to view it.
+            {isDeletedByAnotherUser
+              ? 'This analysis has been deleted by another user while you were viewing it.'
+              : "The analysis you're looking for doesn't exist or you don't have permission to view it."}
           </p>
           <div className="flex gap-4 justify-center">
             <button
               onClick={() => navigate('/history')}
-              className="px-6 py-2 border border-slate-300 text-slate-700 rounded-lg hover:bg-slate-50"
+              className="px-6 py-2.5 min-h-11 border border-slate-300 text-slate-700 rounded-lg hover:bg-slate-50"
             >
               View History
             </button>
             <button
               onClick={() => navigate('/dashboard')}
-              className="px-6 py-2 bg-indigo-600 text-white rounded-lg hover:bg-indigo-700"
+              className="px-6 py-2.5 min-h-11 bg-indigo-600 text-white rounded-lg hover:bg-indigo-700"
             >
               Return to Dashboard
             </button>
@@ -268,7 +294,7 @@ export function AnalysisDetailPage() {
             setLoading(true);
             (window as any).__retryAnalysisFetch?.();
           }}
-          className="px-4 py-2 bg-red-600 text-white rounded-lg hover:bg-red-700 transition-colors"
+          className="px-4 py-2.5 min-h-11 bg-red-600 text-white rounded-lg hover:bg-red-700 transition-colors"
         >
           Try Again
         </button>
@@ -313,14 +339,14 @@ export function AnalysisDetailPage() {
               <button
                 onClick={() => setShowDeleteConfirm(false)}
                 disabled={deleting}
-                className="px-4 py-2 border border-slate-300 rounded-lg hover:bg-slate-50 disabled:opacity-50"
+                className="px-4 py-2.5 min-h-11 border border-slate-300 rounded-lg hover:bg-slate-50 disabled:opacity-50"
               >
                 Cancel
               </button>
               <button
                 onClick={handleDelete}
                 disabled={deleting}
-                className="px-4 py-2 bg-red-600 text-white rounded-lg hover:bg-red-700 disabled:opacity-50"
+                className="px-4 py-2.5 min-h-11 bg-red-600 text-white rounded-lg hover:bg-red-700 disabled:opacity-50"
               >
                 {deleting ? 'Deleting...' : 'Delete'}
               </button>
@@ -346,14 +372,14 @@ export function AnalysisDetailPage() {
               <button
                 onClick={() => setShowReanalyzeConfirm(false)}
                 disabled={reanalyzing}
-                className="px-4 py-2 border border-slate-300 rounded-lg hover:bg-slate-50 disabled:opacity-50"
+                className="px-4 py-2.5 min-h-11 border border-slate-300 rounded-lg hover:bg-slate-50 disabled:opacity-50"
               >
                 Cancel
               </button>
               <button
                 onClick={handleReanalyze}
                 disabled={reanalyzing}
-                className="px-4 py-2 bg-indigo-600 text-white rounded-lg hover:bg-indigo-700 disabled:opacity-50"
+                className="px-4 py-2.5 min-h-11 bg-indigo-600 text-white rounded-lg hover:bg-indigo-700 disabled:opacity-50"
               >
                 {reanalyzing ? 'Starting...' : 'Confirm Re-analyze'}
               </button>
@@ -368,16 +394,16 @@ export function AnalysisDetailPage() {
           <button
             onClick={() => setShowReanalyzeConfirm(true)}
             disabled={isProcessing}
-            className="px-4 py-2 bg-indigo-600 text-white rounded-lg hover:bg-indigo-700 disabled:opacity-50 disabled:cursor-not-allowed"
+            className="px-4 py-2.5 min-h-11 bg-indigo-600 text-white rounded-lg hover:bg-indigo-700 disabled:opacity-50 disabled:cursor-not-allowed"
           >
             Re-analyze
           </button>
-          <button className="px-4 py-2 border border-slate-300 rounded-lg hover:bg-slate-50">
+          <button className="px-4 py-2.5 min-h-11 border border-slate-300 rounded-lg hover:bg-slate-50">
             Export
           </button>
           <button
             onClick={() => setShowDeleteConfirm(true)}
-            className="px-4 py-2 border border-red-300 text-red-600 rounded-lg hover:bg-red-50"
+            className="px-4 py-2.5 min-h-11 border border-red-300 text-red-600 rounded-lg hover:bg-red-50"
           >
             Delete
           </button>
@@ -400,7 +426,7 @@ export function AnalysisDetailPage() {
             </div>
             <button
               onClick={handleCancel}
-              className="px-4 py-2 border border-red-300 text-red-600 rounded-lg hover:bg-red-50"
+              className="px-4 py-2.5 min-h-11 border border-red-300 text-red-600 rounded-lg hover:bg-red-50"
             >
               Cancel
             </button>
@@ -506,12 +532,12 @@ export function AnalysisDetailPage() {
           </div>
           <div>
             <p className="text-slate-500">Created At</p>
-            <p className="text-slate-900">{new Date(analysis.createdAt).toLocaleString()}</p>
+            <p className="text-slate-900">{formatDate(analysis.createdAt)}</p>
           </div>
           {analysis.completedAt && (
             <div>
               <p className="text-slate-500">Completed At</p>
-              <p className="text-slate-900">{new Date(analysis.completedAt).toLocaleString()}</p>
+              <p className="text-slate-900">{formatDate(analysis.completedAt)}</p>
             </div>
           )}
           {analysis.processingTimeMs && (

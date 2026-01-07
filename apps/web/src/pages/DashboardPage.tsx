@@ -1,6 +1,7 @@
 import { useEffect, useState } from 'react';
 import { Link } from 'react-router-dom';
 import { useAuth } from '../lib/auth';
+import { formatDate } from '../lib/utils';
 
 interface DashboardStats {
   analysesThisMonth: number;
@@ -105,7 +106,7 @@ export function DashboardPage() {
         <p className="text-red-700 mb-4">{error}</p>
         <button
           onClick={fetchDashboardData}
-          className="px-4 py-2 bg-red-600 text-white rounded-lg hover:bg-red-700 transition-colors"
+          className="px-4 py-2.5 min-h-11 bg-red-600 text-white rounded-lg hover:bg-red-700 transition-colors"
         >
           Try Again
         </button>
@@ -135,7 +136,7 @@ export function DashboardPage() {
             </div>
             <Link
               to="/tokens"
-              className="px-4 py-2 bg-amber-600 text-white rounded-lg hover:bg-amber-700 text-sm font-medium whitespace-nowrap"
+              className="px-4 py-2.5 min-h-11 flex items-center bg-amber-600 text-white rounded-lg hover:bg-amber-700 text-sm font-medium whitespace-nowrap"
             >
               Purchase Tokens
             </Link>
@@ -193,7 +194,7 @@ export function DashboardPage() {
       <div className="bg-white rounded-lg shadow">
         <div className="px-6 py-4 border-b border-slate-200 flex justify-between items-center">
           <h2 className="text-lg font-semibold text-slate-900">Recent Analyses</h2>
-          <Link to="/history" className="text-sm text-indigo-600 hover:text-indigo-800">
+          <Link to="/history" className="text-sm text-indigo-600 hover:text-indigo-800 min-h-11 py-2.5 px-3 flex items-center">
             View All
           </Link>
         </div>
@@ -215,7 +216,7 @@ export function DashboardPage() {
                   <div>
                     <p className="font-medium text-slate-900">{analysis.filename}</p>
                     <p className="text-sm text-slate-600">
-                      {analysis.testType} • {new Date(analysis.createdAt).toLocaleDateString()}
+                      {analysis.testType} • {formatDate(analysis.createdAt)}
                     </p>
                   </div>
                   <div className="flex items-center gap-4">
