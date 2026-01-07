@@ -1,9 +1,96 @@
+import { useEffect, useState } from 'react';
 import { Link } from 'react-router-dom';
 import { useAuth } from '../lib/auth';
 
+interface DashboardStats {
+  analysesThisMonth: number;
+  approvalRate: number | null;
+  avgProcessingTimeSeconds: number | null;
+  tokenBalance: number;
+}
+
+interface RecentAnalysis {
+  id: string;
+  filename: string;
+  testType: string;
+  status: string;
+  verdict: string | null;
+  score: number | null;
+  createdAt: string;
+}
+
 export function DashboardPage() {
-  const { user } = useAuth();
-  const tokenBalance = (user as { company?: { tokenBalance?: number } })?.company?.tokenBalance ?? 0;
+  const { token } = useAuth();
+  const [stats, setStats] = useState<DashboardStats | null>(null);
+  const [recentAnalyses, setRecentAnalyses] = useState<RecentAnalysis[]>([]);
+  const [loading, setLoading] = useState(true);
+
+  useEffect(() => {
+    const fetchDashboardData = async () => {
+      try {
+        const [statsResponse, recentResponse] = await Promise.all([
+          fetch('/api/analysis/stats', {
+            headers: { Authorization: `Bearer ${token}` },
+          }),
+          fetch('/api/analysis/recent', {
+            headers: { Authorization: `Bearer ${token}` },
+          }),
+        ]);
+
+        if (statsResponse.ok) {
+          const data = await statsResponse.json();
+          setStats(data.stats);
+        }
+
+        if (recentResponse.ok) {
+          const data = await recentResponse.json();
+          setRecentAnalyses(data.analyses);
+        }
+      } catch (error) {
+        console.error('Failed to fetch dashboard data:', error);
+      } finally {
+        setLoading(false);
+      }
+    };
+
+    fetchDashboardData();
+  }, [token]);
+
+  const getVerdictBadge = (verdict: string | null, status: string) => {
+    if (!verdict || status !== 'COMPLETED') {
+      return (
+        <span className="px-2 py-1 text-xs font-medium bg-slate-100 text-slate-600 rounded">
+          {status}
+        </span>
+      );
+    }
+    switch (verdict) {
+      case 'APPROVED':
+        return (
+          <span className="px-2 py-1 text-xs font-medium bg-emerald-100 text-emerald-800 rounded">
+            Approved
+          </span>
+        );
+      case 'APPROVED_WITH_COMMENTS':
+        return (
+          <span className="px-2 py-1 text-xs font-medium bg-amber-100 text-amber-800 rounded">
+            Approved w/ Comments
+          </span>
+        );
+      case 'REJECTED':
+        return (
+          <span className="px-2 py-1 text-xs font-medium bg-red-100 text-red-800 rounded">
+            Rejected
+          </span>
+        );
+      default:
+        return (
+          <span className="px-2 py-1 text-xs font-medium bg-slate-100 text-slate-600 rounded">
+            {verdict}
+          </span>
+        );
+    }
+  };
 
   return (
     <div>
@@ -11,7 +98,9 @@ export function DashboardPage() {
         <h1 className="text-2xl font-bold text-slate-900">Dashboard</h1>
         <div className="flex items-center gap-4">
           <span className="text-sm text-slate-600">Token Balance:</span>
-          <span className="font-semibold text-indigo-600">{tokenBalance.toLocaleString()} tokens</span>
+          <span className="font-semibold text-indigo-600">
+            {loading ? '--' : (stats?.tokenBalance ?? 0).toLocaleString()} tokens
+          </span>
         </div>
       </div>
 
@@ -19,19 +108,27 @@ export function DashboardPage() {
       <div className="grid grid-cols-1 md:grid-cols-4 gap-4 mb-8">
         <div className="bg-white p-6 rounded-lg shadow">
           <h3 className="text-sm font-medium text-slate-600">Analyses This Month</h3>
-          <p className="text-3xl font-bold text-slate-900 mt-2">0</p>
+          <p className="text-3xl font-bold text-slate-900 mt-2">
+            {loading ? '--' : stats?.analysesThisMonth ?? 0}
+          </p>
         </div>
         <div className="bg-white p-6 rounded-lg shadow">
           <h3 className="text-sm font-medium text-slate-600">Approval Rate</h3>
-          <p className="text-3xl font-bold text-emerald-600 mt-2">--</p>
+          <p className="text-3xl font-bold text-emerald-600 mt-2">
+            {loading ? '--' : stats?.approvalRate !== null ? `${stats.approvalRate}%` : '--'}
+          </p>
         </div>
         <div className="bg-white p-6 rounded-lg shadow">
           <h3 className="text-sm font-medium text-slate-600">Avg Processing Time</h3>
-          <p className="text-3xl font-bold text-slate-900 mt-2">--</p>
+          <p className="text-3xl font-bold text-slate-900 mt-2">
+            {loading ? '--' : stats?.avgProcessingTimeSeconds !== null ? `${stats.avgProcessingTimeSeconds}s` : '--'}
+          </p>
         </div>
         <div className="bg-white p-6 rounded-lg shadow">
           <h3 className="text-sm font-medium text-slate-600">Token Balance</h3>
-          <p className="text-3xl font-bold text-indigo-600 mt-2">{tokenBalance.toLocaleString()}</p>
+          <p className="text-3xl font-bold text-indigo-600 mt-2">
+            {loading ? '--' : (stats?.tokenBalance ?? 0).toLocaleString()}
+          </p>
         </div>
       </div>
 
@@ -45,13 +142,43 @@ export function DashboardPage() {
 
       {/* Recent Analyses */}
       <div className="bg-white rounded-lg shadow">
-        <div className="px-6 py-4 border-b border-slate-200">
+        <div className="px-6 py-4 border-b border-slate-200 flex justify-between items-center">
           <h2 className="text-lg font-semibold text-slate-900">Recent Analyses</h2>
+          <Link to="/history" className="text-sm text-indigo-600 hover:text-indigo-800">
+            View All
+          </Link>
         </div>
         <div className="p-6">
-          <p className="text-slate-600 text-center py-8">
-            No analyses yet. Start by uploading a PDF report.
-          </p>
+          {loading ? (
+            <p className="text-slate-600 text-center py-8">Loading...</p>
+          ) : recentAnalyses.length === 0 ? (
+            <p className="text-slate-600 text-center py-8">
+              No analyses yet. Start by uploading a PDF report.
+            </p>
+          ) : (
+            <div className="space-y-4">
+              {recentAnalyses.map((analysis) => (
+                <Link
+                  key={analysis.id}
+                  to={`/analysis/${analysis.id}`}
+                  className="flex items-center justify-between p-4 border border-slate-200 rounded-lg hover:bg-slate-50"
+                >
+                  <div>
+                    <p className="font-medium text-slate-900">{analysis.filename}</p>
+                    <p className="text-sm text-slate-600">
+                      {analysis.testType} • {new Date(analysis.createdAt).toLocaleDateString()}
+                    </p>
+                  </div>
+                  <div className="flex items-center gap-4">
+                    {analysis.score !== null && (
+                      <span className="text-sm font-medium text-slate-600">{analysis.score}%</span>
+                    )}
+                    {getVerdictBadge(analysis.verdict, analysis.status)}
+                  </div>
+                </Link>
+              ))}
+            </div>
+          )}
         </div>
       </div>
     </div>

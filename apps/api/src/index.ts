@@ -27,16 +27,8 @@ app.route('/api/companies', companyRoutes);
 app.route('/api/analysis', analysisRoutes);
 app.route('/api/tokens', tokenRoutes);
 
-// Dashboard routes
-app.get('/api/dashboard/stats', async (c) => {
-  // TODO: Implement dashboard stats
-  return c.json({ message: 'Dashboard stats endpoint' });
-});
-
-app.get('/api/dashboard/recent', async (c) => {
-  // TODO: Implement recent analyses
-  return c.json({ message: 'Recent analyses endpoint' });
-});
+// Dashboard routes are handled by analysis routes
+// Stats and recent are fetched via /api/analysis with additional query params
 
 // Super Admin routes
 app.get('/api/admin/companies', async (c) => {

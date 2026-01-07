@@ -1,4 +1,17 @@
+import { useNavigate } from 'react-router-dom';
+
 export function NewAnalysisPage() {
+  const navigate = useNavigate();
+
+  const handleCancel = () => {
+    // Go back to the previous page, or dashboard if no history
+    if (window.history.length > 1) {
+      navigate(-1);
+    } else {
+      navigate('/dashboard');
+    }
+  };
+
   return (
     <div className="min-h-screen bg-slate-50">
       <div className="max-w-4xl mx-auto px-4 sm:px-6 lg:px-8 py-8">
@@ -45,7 +58,11 @@ export function NewAnalysisPage() {
             <button className="flex-1 py-3 bg-indigo-600 text-white rounded-lg font-medium hover:bg-indigo-700 transition-colors disabled:opacity-50">
               Start Analysis
             </button>
-            <button className="px-6 py-3 border border-slate-300 text-slate-700 rounded-lg hover:bg-slate-50 transition-colors">
+            <button
+              type="button"
+              onClick={handleCancel}
+              className="px-6 py-3 border border-slate-300 text-slate-700 rounded-lg hover:bg-slate-50 transition-colors"
+            >
               Cancel
             </button>
           </div>
