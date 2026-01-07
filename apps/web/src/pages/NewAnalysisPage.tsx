@@ -28,9 +28,9 @@ export function NewAnalysisPage() {
   const [isDragActive, setIsDragActive] = useState(false);
   const [uploadProgress, setUploadProgress] = useState<number | null>(null);
 
-  // Estimated tokens based on file size (rough estimate)
+  // Estimated tokens based on file size (~8000 tokens/MB)
   const estimatedTokens = selectedFile
-    ? Math.max(1000, Math.min(10000, Math.round(selectedFile.size / 100)))
+    ? Math.max(1000, Math.round((selectedFile.size / (1024 * 1024)) * 8000))
     : null;
 
   const handleCancel = () => {
