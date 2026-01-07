@@ -11,9 +11,11 @@ interface User {
 interface AuthContextType {
   user: User | null;
   token: string | null;
+  tokenBalance: number | null;
   isLoading: boolean;
   login: (email: string, password: string) => Promise<void>;
   logout: () => void;
+  refreshTokenBalance: () => Promise<void>;
   isAuthenticated: boolean;
 }
 
@@ -22,6 +24,7 @@ const AuthContext = createContext<AuthContextType | null>(null);
 export function AuthProvider({ children }: { children: ReactNode }) {
   const [user, setUser] = useState<User | null>(null);
   const [token, setToken] = useState<string | null>(null);
+  const [tokenBalance, setTokenBalance] = useState<number | null>(null);
   const [isLoading, setIsLoading] = useState(true);
 
   useEffect(() => {
@@ -36,6 +39,28 @@ export function AuthProvider({ children }: { children: ReactNode }) {
     }
   }, []);
 
+  const fetchTokenBalance = async (authToken: string) => {
+    try {
+      const response = await fetch('/api/tokens/balance', {
+        headers: {
+          Authorization: `Bearer ${authToken}`,
+        },
+      });
+      if (response.ok) {
+        const data = await response.json();
+        setTokenBalance(data.balance);
+      }
+    } catch (error) {
+      console.error('Failed to fetch token balance:', error);
+    }
+  };
+
+  const refreshTokenBalance = async () => {
+    if (token) {
+      await fetchTokenBalance(token);
+    }
+  };
+
   const fetchUser = async (authToken: string) => {
     try {
       const response = await fetch('/api/users/me', {
@@ -46,6 +71,8 @@ export function AuthProvider({ children }: { children: ReactNode }) {
       if (response.ok) {
         const userData = await response.json();
         setUser(userData);
+        // Also fetch token balance after getting user
+        await fetchTokenBalance(authToken);
       } else {
         // Token invalid, clear it
         localStorage.removeItem('auth_token');
@@ -76,11 +103,14 @@ export function AuthProvider({ children }: { children: ReactNode }) {
     setToken(data.token);
     setUser(data.user);
     localStorage.setItem('auth_token', data.token);
+    // Fetch token balance after login
+    await fetchTokenBalance(data.token);
   };
 
   const logout = () => {
     setUser(null);
     setToken(null);
+    setTokenBalance(null);
     localStorage.removeItem('auth_token');
     // Optional: Call logout endpoint
     fetch('/api/auth/logout', {
@@ -98,9 +128,11 @@ export function AuthProvider({ children }: { children: ReactNode }) {
       value={{
         user,
         token,
+        tokenBalance,
         isLoading,
         login,
         logout,
+        refreshTokenBalance,
         isAuthenticated: !!user,
       }}
     >

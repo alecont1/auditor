@@ -97,11 +97,50 @@ companyRoutes.put('/:id', requireAuth, requireRole('ADMIN', 'SUPER_ADMIN'), asyn
   }
 });
 
+// Schema for logo upload
+const logoUploadSchema = z.object({
+  imageData: z.string().min(1, 'Image data is required'), // Base64 encoded image
+  filename: z.string().min(1, 'Filename is required'),
+});
+
 // POST /api/companies/:id/logo - Upload company logo (ADMIN only)
 companyRoutes.post('/:id/logo', requireAuth, requireRole('ADMIN', 'SUPER_ADMIN'), async (c) => {
   const id = c.req.param('id');
-  // TODO: Implement logo upload to R2
-  return c.json({ message: `Upload logo for company ${id} endpoint` });
+  const user = c.get('user');
+
+  try {
+    // Non-super admins can only update their own company
+    if (user.role !== 'SUPER_ADMIN' && user.companyId !== id) {
+      return c.json({ error: 'Forbidden', message: 'Cannot upload logo for other companies' }, 403);
+    }
+
+    const body = await c.req.json();
+    const validation = logoUploadSchema.safeParse(body);
+
+    if (!validation.success) {
+      return c.json({ error: 'Validation Error', message: validation.error.issues[0].message }, 400);
+    }
+
+    const { filename } = validation.data;
+
+    // Simulate R2 upload - in production this would upload to R2 and return the URL
+    // For development, we'll generate a simulated URL
+    const timestamp = Date.now();
+    const extension = filename.split('.').pop() || 'png';
+    const simulatedUrl = `/uploads/logos/${id}-${timestamp}.${extension}`;
+
+    // Update company with the logo URL
+    const company = await updateCompany(id, { logoUrl: simulatedUrl });
+
+    return c.json({
+      success: true,
+      message: 'Logo uploaded successfully',
+      logoUrl: company.logoUrl,
+    });
+  } catch (error) {
+    console.error('Error uploading logo:', error);
+    return c.json({ error: 'Failed to upload logo' }, 500);
+  }
 });
 
 // POST /api/companies - Create company (SUPER_ADMIN only)

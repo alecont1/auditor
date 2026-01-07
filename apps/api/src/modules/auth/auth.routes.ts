@@ -1,6 +1,6 @@
 import { Hono } from 'hono';
 import { z } from 'zod';
-import { login, changePassword } from './auth.service';
+import { login, changePassword, acceptInvitation, validateInvitationToken } from './auth.service';
 import { requireAuth } from './auth.middleware';
 
 export const authRoutes = new Hono();
@@ -14,6 +14,12 @@ const loginSchema = z.object({
 const changePasswordSchema = z.object({
   currentPassword: z.string().min(1, 'Current password is required'),
   newPassword: z.string().min(8, 'New password must be at least 8 characters'),
+});
+
+const acceptInvitationSchema = z.object({
+  token: z.string().min(1, 'Invitation token is required'),
+  name: z.string().min(1, 'Name is required'),
+  password: z.string().min(8, 'Password must be at least 8 characters'),
 });
 
 // POST /api/auth/login
@@ -81,6 +87,64 @@ authRoutes.post('/change-password', requireAuth, async (c) => {
     console.error('Change password error:', error);
     return c.json(
       { error: 'Failed', message: error instanceof Error ? error.message : 'Failed to change password' },
+      400
+    );
+  }
+});
+
+// GET /api/auth/invitation/:token - Validate invitation token
+authRoutes.get('/invitation/:token', async (c) => {
+  try {
+    const token = c.req.param('token');
+    const invitation = await validateInvitationToken(token);
+
+    return c.json({
+      valid: true,
+      invitation: {
+        email: invitation.email,
+        role: invitation.role,
+        companyName: invitation.company.name,
+      },
+    });
+  } catch (error) {
+    console.error('Validate invitation error:', error);
+    return c.json(
+      { valid: false, error: error instanceof Error ? error.message : 'Invalid invitation' },
+      400
+    );
+  }
+});
+
+// POST /api/auth/accept-invitation - Accept invitation and create user
+authRoutes.post('/accept-invitation', async (c) => {
+  try {
+    const body = await c.req.json();
+    const validation = acceptInvitationSchema.safeParse(body);
+
+    if (!validation.success) {
+      return c.json(
+        { error: 'Validation Error', message: validation.error.issues[0].message },
+        400
+      );
+    }
+
+    const { token, name, password } = validation.data;
+    const user = await acceptInvitation(token, name, password);
+
+    return c.json({
+      success: true,
+      message: 'Account created successfully',
+      user: {
+        id: user.id,
+        email: user.email,
+        name: user.name,
+        role: user.role,
+      },
+    });
+  } catch (error) {
+    console.error('Accept invitation error:', error);
+    return c.json(
+      { error: 'Failed', message: error instanceof Error ? error.message : 'Failed to accept invitation' },
       400
     );
   }

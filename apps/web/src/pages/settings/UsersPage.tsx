@@ -1,6 +1,6 @@
 import { useState, useEffect } from 'react';
 import { InviteUserModal } from '../../components/InviteUserModal';
-import { useAuth } from '../../hooks/useAuth';
+import { useAuth } from '../../lib/auth';
 
 interface User {
   id: string;
@@ -19,6 +19,8 @@ export function UsersPage() {
   const [isInviteModalOpen, setIsInviteModalOpen] = useState(false);
 
   const fetchUsers = async () => {
+    setLoading(true);
+    setError(null);
     try {
       const response = await fetch('/api/users', {
         headers: {
@@ -33,11 +35,8 @@ export function UsersPage() {
       const data = await response.json();
       setUsers(data.users || []);
     } catch (err) {
-      if (err instanceof Error) {
-        setError(err.message);
-      } else {
-        setError('Failed to load users');
-      }
+      // User-friendly error message without technical details
+      setError('Unable to load users. Please check your connection and try again.');
     } finally {
       setLoading(false);
     }
@@ -127,8 +126,22 @@ export function UsersPage() {
 
   if (error) {
     return (
-      <div className="min-h-screen bg-slate-50 flex items-center justify-center">
-        <div className="text-red-600">{error}</div>
+      <div className="min-h-screen bg-slate-50">
+        <div className="max-w-4xl mx-auto px-4 sm:px-6 lg:px-8 py-8">
+          <div className="bg-red-50 border border-red-200 rounded-lg p-6 text-center">
+            <svg className="w-12 h-12 mx-auto text-red-400 mb-4" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+              <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M12 9v2m0 4h.01m-6.938 4h13.856c1.54 0 2.502-1.667 1.732-3L13.732 4c-.77-1.333-2.694-1.333-3.464 0L3.34 16c-.77 1.333.192 3 1.732 3z" />
+            </svg>
+            <h3 className="text-lg font-medium text-red-800 mb-2">Connection Error</h3>
+            <p className="text-red-700 mb-4">{error}</p>
+            <button
+              onClick={fetchUsers}
+              className="px-4 py-2 bg-red-600 text-white rounded-lg hover:bg-red-700 transition-colors"
+            >
+              Try Again
+            </button>
+          </div>
+        </div>
       </div>
     );
   }

@@ -126,3 +126,76 @@ export async function getUserById(userId: string) {
 
   return user;
 }
+
+export async function validateInvitationToken(token: string) {
+  const invitation = await prisma.invitation.findFirst({
+    where: {
+      token,
+      acceptedAt: null,
+      expiresAt: { gt: new Date() },
+    },
+    include: {
+      company: {
+        select: {
+          name: true,
+        },
+      },
+    },
+  });
+
+  if (!invitation) {
+    throw new Error('Invalid or expired invitation');
+  }
+
+  return invitation;
+}
+
+export async function acceptInvitation(
+  token: string,
+  name: string,
+  password: string
+) {
+  // Validate the invitation
+  const invitation = await prisma.invitation.findFirst({
+    where: {
+      token,
+      acceptedAt: null,
+      expiresAt: { gt: new Date() },
+    },
+  });
+
+  if (!invitation) {
+    throw new Error('Invalid or expired invitation');
+  }
+
+  // Check if user with this email already exists
+  const existingUser = await prisma.user.findUnique({
+    where: { email: invitation.email },
+  });
+
+  if (existingUser) {
+    throw new Error('A user with this email already exists');
+  }
+
+  // Hash password
+  const passwordHash = await hashPassword(password);
+
+  // Create user and mark invitation as accepted in a transaction
+  const [user] = await prisma.$transaction([
+    prisma.user.create({
+      data: {
+        email: invitation.email,
+        name,
+        passwordHash,
+        role: invitation.role,
+        companyId: invitation.companyId,
+      },
+    }),
+    prisma.invitation.update({
+      where: { id: invitation.id },
+      data: { acceptedAt: new Date() },
+    }),
+  ]);
+
+  return user;
+}

@@ -24,64 +24,149 @@ export function HistoryPage() {
   const [analyses, setAnalyses] = useState<Analysis[]>([]);
   const [loading, setLoading] = useState(true);
   const [error, setError] = useState<string | null>(null);
-  const [searchTerm, setSearchTerm] = useState('');
-  const [testTypeFilter, setTestTypeFilter] = useState('');
-  const [verdictFilter, setVerdictFilter] = useState('');
   const [searchParams, setSearchParams] = useSearchParams();
 
-  // Get current page from URL, default to 1
-  const currentPage = parseInt(searchParams.get('page') || '1', 10);
+  // Initialize filters from URL query parameters
+  const [searchTerm, setSearchTerm] = useState(() => searchParams.get('search') || '');
+  const [testTypeFilter, setTestTypeFilter] = useState(() => searchParams.get('testType') || '');
+  const [verdictFilter, setVerdictFilter] = useState(() => searchParams.get('verdict') || '');
+  const [sortBy, setSortBy] = useState<'date' | 'score'>(() => {
+    const sort = searchParams.get('sortBy');
+    return sort === 'score' ? 'score' : 'date';
+  });
+  const [sortOrder, setSortOrder] = useState<'asc' | 'desc'>(() => {
+    const order = searchParams.get('sortOrder');
+    return order === 'asc' ? 'asc' : 'desc';
+  });
+
+  // Selection state for bulk export
+  const [selectedIds, setSelectedIds] = useState<Set<string>>(new Set());
+  const [exporting, setExporting] = useState(false);
+  const [showExportDropdown, setShowExportDropdown] = useState(false);
+
+  // Get current page from URL, default to 1, with validation for malformed values
+  const rawPage = parseInt(searchParams.get('page') || '1', 10);
+  // Ensure page is a valid positive number, otherwise default to 1
+  const currentPage = Number.isNaN(rawPage) || rawPage < 1 ? 1 : rawPage;
+
+  const fetchAnalyses = async () => {
+    setLoading(true);
+    setError(null);
+    try {
+      const response = await fetch('/api/analysis', {
+        headers: {
+          Authorization: `Bearer ${token}`,
+        },
+      });
+
+      if (!response.ok) {
+        throw new Error('Failed to fetch analyses');
+      }
+
+      const data = await response.json();
+      setAnalyses(data.analyses);
+    } catch (err) {
+      // User-friendly error message without technical details
+      setError('Unable to load analyses. Please check your connection and try again.');
+    } finally {
+      setLoading(false);
+    }
+  };
 
   useEffect(() => {
-    const fetchAnalyses = async () => {
-      try {
-        const response = await fetch('/api/analysis', {
-          headers: {
-            Authorization: `Bearer ${token}`,
-          },
-        });
-
-        if (!response.ok) {
-          throw new Error('Failed to fetch analyses');
-        }
-
-        const data = await response.json();
-        setAnalyses(data.analyses);
-      } catch (err) {
-        setError('Failed to load analyses');
-      } finally {
-        setLoading(false);
-      }
-    };
-
     fetchAnalyses();
   }, [token]);
+
+  // Sync filter changes to URL query parameters
+  // When filters change, we reset to page 1 by not including the page parameter
+  useEffect(() => {
+    const params = new URLSearchParams();
+
+    // Add filters to URL if they have values
+    if (searchTerm) params.set('search', searchTerm);
+    if (testTypeFilter) params.set('testType', testTypeFilter);
+    if (verdictFilter) params.set('verdict', verdictFilter);
+    if (sortBy !== 'date') params.set('sortBy', sortBy);
+    if (sortOrder !== 'desc') params.set('sortOrder', sortOrder);
+
+    // NOTE: We intentionally do NOT preserve the page parameter when filters change
+    // This resets pagination to page 1 when any filter is modified
+
+    // Update URL without adding to history (replace)
+    setSearchParams(params, { replace: true });
+  }, [searchTerm, testTypeFilter, verdictFilter, sortBy, sortOrder]);
 
   const clearFilters = () => {
     setSearchTerm('');
     setTestTypeFilter('');
     setVerdictFilter('');
+    setSortBy('date');
+    setSortOrder('desc');
   };
 
-  const filteredAnalyses = analyses.filter((analysis) => {
-    // Search filter
-    if (searchTerm && !analysis.filename.toLowerCase().includes(searchTerm.toLowerCase())) {
-      return false;
+  const toggleSort = (field: 'date' | 'score') => {
+    if (sortBy === field) {
+      setSortOrder(sortOrder === 'asc' ? 'desc' : 'asc');
+    } else {
+      setSortBy(field);
+      setSortOrder('desc');
     }
-    // Test type filter
-    if (testTypeFilter && analysis.testType !== testTypeFilter) {
-      return false;
+  };
+
+  const getSortIcon = (field: 'date' | 'score') => {
+    if (sortBy !== field) {
+      return (
+        <svg className="w-4 h-4 text-slate-400" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+          <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M7 16V4m0 0L3 8m4-4l4 4m6 0v12m0 0l4-4m-4 4l-4-4" />
+        </svg>
+      );
     }
-    // Verdict filter
-    if (verdictFilter && analysis.verdict !== verdictFilter) {
-      return false;
-    }
-    return true;
-  });
+    return sortOrder === 'desc' ? (
+      <svg className="w-4 h-4 text-indigo-600" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+        <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M19 9l-7 7-7-7" />
+      </svg>
+    ) : (
+      <svg className="w-4 h-4 text-indigo-600" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+        <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M5 15l7-7 7 7" />
+      </svg>
+    );
+  };
+
+  const filteredAnalyses = analyses
+    .filter((analysis) => {
+      // Search filter - trim whitespace to handle spaces-only searches
+      const trimmedSearch = searchTerm.trim();
+      if (trimmedSearch && !analysis.filename.toLowerCase().includes(trimmedSearch.toLowerCase())) {
+        return false;
+      }
+      // Test type filter
+      if (testTypeFilter && analysis.testType !== testTypeFilter) {
+        return false;
+      }
+      // Verdict filter
+      if (verdictFilter && analysis.verdict !== verdictFilter) {
+        return false;
+      }
+      return true;
+    })
+    .sort((a, b) => {
+      let comparison = 0;
+      if (sortBy === 'date') {
+        comparison = new Date(a.createdAt).getTime() - new Date(b.createdAt).getTime();
+      } else if (sortBy === 'score') {
+        // Handle null scores - put them at the end
+        const scoreA = a.score ?? -1;
+        const scoreB = b.score ?? -1;
+        comparison = scoreA - scoreB;
+      }
+      return sortOrder === 'asc' ? comparison : -comparison;
+    });
 
   // Pagination calculations
-  const totalPages = Math.ceil(filteredAnalyses.length / ITEMS_PER_PAGE);
-  const startIndex = (currentPage - 1) * ITEMS_PER_PAGE;
+  const totalPages = Math.max(1, Math.ceil(filteredAnalyses.length / ITEMS_PER_PAGE));
+  // Clamp currentPage to valid range (1 to totalPages)
+  const validPage = Math.min(Math.max(1, currentPage), totalPages);
+  const startIndex = (validPage - 1) * ITEMS_PER_PAGE;
   const endIndex = startIndex + ITEMS_PER_PAGE;
   const paginatedAnalyses = filteredAnalyses.slice(startIndex, endIndex);
 
@@ -93,6 +178,97 @@ export function HistoryPage() {
       params.set('page', page.toString());
     }
     setSearchParams(params);
+  };
+
+  // Selection handlers
+  const toggleSelect = (id: string) => {
+    setSelectedIds((prev) => {
+      const newSet = new Set(prev);
+      if (newSet.has(id)) {
+        newSet.delete(id);
+      } else {
+        newSet.add(id);
+      }
+      return newSet;
+    });
+  };
+
+  const toggleSelectAll = () => {
+    const allPageIds = paginatedAnalyses.map((a) => a.id);
+    const allSelected = allPageIds.every((id) => selectedIds.has(id));
+
+    if (allSelected) {
+      // Deselect all on current page
+      setSelectedIds((prev) => {
+        const newSet = new Set(prev);
+        allPageIds.forEach((id) => newSet.delete(id));
+        return newSet;
+      });
+    } else {
+      // Select all on current page
+      setSelectedIds((prev) => {
+        const newSet = new Set(prev);
+        allPageIds.forEach((id) => newSet.add(id));
+        return newSet;
+      });
+    }
+  };
+
+  const clearSelection = () => {
+    setSelectedIds(new Set());
+  };
+
+  const handleBulkExport = async (format: 'json' | 'csv') => {
+    if (selectedIds.size === 0) return;
+
+    setExporting(true);
+    setShowExportDropdown(false);
+
+    try {
+      const response = await fetch('/api/analysis/bulk-export', {
+        method: 'POST',
+        headers: {
+          Authorization: `Bearer ${token}`,
+          'Content-Type': 'application/json',
+        },
+        body: JSON.stringify({
+          ids: Array.from(selectedIds),
+          format,
+        }),
+      });
+
+      if (!response.ok) {
+        throw new Error('Export failed');
+      }
+
+      // Get the filename from Content-Disposition header or generate one
+      const contentDisposition = response.headers.get('Content-Disposition');
+      let filename = `analyses_export.${format}`;
+      if (contentDisposition) {
+        const match = contentDisposition.match(/filename="(.+)"/);
+        if (match) {
+          filename = match[1];
+        }
+      }
+
+      // Create blob and download
+      const blob = await response.blob();
+      const url = window.URL.createObjectURL(blob);
+      const a = document.createElement('a');
+      a.href = url;
+      a.download = filename;
+      document.body.appendChild(a);
+      a.click();
+      document.body.removeChild(a);
+      window.URL.revokeObjectURL(url);
+
+      // Clear selection after successful export
+      clearSelection();
+    } catch (err) {
+      alert('Failed to export analyses');
+    } finally {
+      setExporting(false);
+    }
   };
 
   const getVerdictBadge = (verdict: string | null, status: string) => {
@@ -131,6 +307,10 @@ export function HistoryPage() {
     }
   };
 
+  // Check if all items on current page are selected
+  const allPageSelected = paginatedAnalyses.length > 0 && paginatedAnalyses.every((a) => selectedIds.has(a.id));
+  const somePageSelected = paginatedAnalyses.some((a) => selectedIds.has(a.id)) && !allPageSelected;
+
   if (loading) {
     return (
       <div className="flex items-center justify-center h-64">
@@ -141,8 +321,18 @@ export function HistoryPage() {
 
   if (error) {
     return (
-      <div className="bg-red-50 border border-red-200 rounded-lg p-4 text-red-700">
-        {error}
+      <div className="bg-red-50 border border-red-200 rounded-lg p-6 text-center">
+        <svg className="w-12 h-12 mx-auto text-red-400 mb-4" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+          <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M12 9v2m0 4h.01m-6.938 4h13.856c1.54 0 2.502-1.667 1.732-3L13.732 4c-.77-1.333-2.694-1.333-3.464 0L3.34 16c-.77 1.333.192 3 1.732 3z" />
+        </svg>
+        <h3 className="text-lg font-medium text-red-800 mb-2">Connection Error</h3>
+        <p className="text-red-700 mb-4">{error}</p>
+        <button
+          onClick={fetchAnalyses}
+          className="px-4 py-2 bg-red-600 text-white rounded-lg hover:bg-red-700 transition-colors"
+        >
+          Try Again
+        </button>
       </div>
     );
   }
@@ -190,31 +380,134 @@ export function HistoryPage() {
         </div>
       </div>
 
+      {/* Bulk Actions Bar */}
+      {selectedIds.size > 0 && (
+        <div className="bg-indigo-50 border border-indigo-200 rounded-lg p-4 mb-6 flex items-center justify-between">
+          <span className="text-indigo-700 font-medium">
+            {selectedIds.size} {selectedIds.size === 1 ? 'analysis' : 'analyses'} selected
+          </span>
+          <div className="flex items-center gap-3">
+            <button
+              onClick={clearSelection}
+              className="px-3 py-1.5 text-slate-600 hover:text-slate-900"
+            >
+              Clear Selection
+            </button>
+            <div className="relative">
+              <button
+                onClick={() => setShowExportDropdown(!showExportDropdown)}
+                disabled={exporting}
+                className="px-4 py-2 bg-indigo-600 text-white rounded-lg hover:bg-indigo-700 transition-colors disabled:opacity-50 flex items-center gap-2"
+              >
+                {exporting ? 'Exporting...' : 'Bulk Export'}
+                <svg className="w-4 h-4" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                  <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M19 9l-7 7-7-7" />
+                </svg>
+              </button>
+              {showExportDropdown && (
+                <div className="absolute right-0 mt-2 w-40 bg-white rounded-lg shadow-lg border border-slate-200 py-1 z-10">
+                  <button
+                    onClick={() => handleBulkExport('json')}
+                    className="w-full px-4 py-2 text-left hover:bg-slate-50 text-sm"
+                  >
+                    Export as JSON
+                  </button>
+                  <button
+                    onClick={() => handleBulkExport('csv')}
+                    className="w-full px-4 py-2 text-left hover:bg-slate-50 text-sm"
+                  >
+                    Export as CSV
+                  </button>
+                </div>
+              )}
+            </div>
+          </div>
+        </div>
+      )}
+
       {/* Table */}
       <div className="bg-white rounded-lg shadow overflow-hidden">
         <table className="w-full">
           <thead className="bg-slate-50">
             <tr>
+              <th className="px-4 py-3 text-left">
+                <input
+                  type="checkbox"
+                  checked={allPageSelected}
+                  ref={(el) => {
+                    if (el) el.indeterminate = somePageSelected;
+                  }}
+                  onChange={toggleSelectAll}
+                  className="w-4 h-4 rounded border-slate-300 text-indigo-600 focus:ring-indigo-500"
+                />
+              </th>
               <th className="px-6 py-3 text-left text-xs font-medium text-slate-500 uppercase">Filename</th>
               <th className="px-6 py-3 text-left text-xs font-medium text-slate-500 uppercase">Test Type</th>
               <th className="px-6 py-3 text-left text-xs font-medium text-slate-500 uppercase">Verdict</th>
-              <th className="px-6 py-3 text-left text-xs font-medium text-slate-500 uppercase">Score</th>
-              <th className="px-6 py-3 text-left text-xs font-medium text-slate-500 uppercase">Date</th>
+              <th className="px-6 py-3 text-left text-xs font-medium text-slate-500 uppercase">
+                <button
+                  onClick={() => toggleSort('score')}
+                  className="flex items-center gap-1 hover:text-slate-700"
+                >
+                  Score
+                  {getSortIcon('score')}
+                </button>
+              </th>
+              <th className="px-6 py-3 text-left text-xs font-medium text-slate-500 uppercase">
+                <button
+                  onClick={() => toggleSort('date')}
+                  className="flex items-center gap-1 hover:text-slate-700"
+                >
+                  Date
+                  {getSortIcon('date')}
+                </button>
+              </th>
               <th className="px-6 py-3 text-left text-xs font-medium text-slate-500 uppercase">Actions</th>
             </tr>
           </thead>
           <tbody className="divide-y divide-slate-200">
             {paginatedAnalyses.length === 0 ? (
               <tr>
-                <td colSpan={6} className="px-6 py-12 text-center text-slate-600">
-                  {analyses.length === 0
-                    ? 'No analyses found. Start by uploading a PDF report.'
-                    : 'No analyses match your filters.'}
+                <td colSpan={7} className="px-6 py-12 text-center">
+                  {analyses.length === 0 ? (
+                    <div className="text-slate-600">
+                      No analyses found. Start by uploading a PDF report.
+                    </div>
+                  ) : (
+                    <div className="text-slate-600">
+                      <p className="mb-2">
+                        No results found
+                        {searchTerm.trim() && (
+                          <span> for "<span className="font-medium text-slate-900">{searchTerm.trim()}</span>"</span>
+                        )}
+                        {testTypeFilter && (
+                          <span> with test type <span className="font-medium text-slate-900">{testTypeFilter}</span></span>
+                        )}
+                        {verdictFilter && (
+                          <span> with verdict <span className="font-medium text-slate-900">{verdictFilter}</span></span>
+                        )}
+                      </p>
+                      <button
+                        onClick={clearFilters}
+                        className="text-indigo-600 hover:text-indigo-800 font-medium"
+                      >
+                        Clear filters
+                      </button>
+                    </div>
+                  )}
                 </td>
               </tr>
             ) : (
               paginatedAnalyses.map((analysis) => (
                 <tr key={analysis.id} className="hover:bg-slate-50">
+                  <td className="px-4 py-4">
+                    <input
+                      type="checkbox"
+                      checked={selectedIds.has(analysis.id)}
+                      onChange={() => toggleSelect(analysis.id)}
+                      className="w-4 h-4 rounded border-slate-300 text-indigo-600 focus:ring-indigo-500"
+                    />
+                  </td>
                   <td className="px-6 py-4">
                     <Link
                       to={`/analysis/${analysis.id}`}
@@ -254,8 +547,8 @@ export function HistoryPage() {
           </div>
           <div className="flex items-center gap-2">
             <button
-              onClick={() => goToPage(currentPage - 1)}
-              disabled={currentPage === 1}
+              onClick={() => goToPage(validPage - 1)}
+              disabled={validPage === 1}
               className="px-3 py-1 border border-slate-300 rounded-lg text-sm hover:bg-slate-50 disabled:opacity-50 disabled:cursor-not-allowed"
             >
               Previous
@@ -265,7 +558,7 @@ export function HistoryPage() {
                 key={page}
                 onClick={() => goToPage(page)}
                 className={`px-3 py-1 border rounded-lg text-sm ${
-                  page === currentPage
+                  page === validPage
                     ? 'bg-indigo-600 text-white border-indigo-600'
                     : 'border-slate-300 hover:bg-slate-50'
                 }`}
@@ -274,8 +567,8 @@ export function HistoryPage() {
               </button>
             ))}
             <button
-              onClick={() => goToPage(currentPage + 1)}
-              disabled={currentPage === totalPages}
+              onClick={() => goToPage(validPage + 1)}
+              disabled={validPage === totalPages}
               className="px-3 py-1 border border-slate-300 rounded-lg text-sm hover:bg-slate-50 disabled:opacity-50 disabled:cursor-not-allowed"
             >
               Next

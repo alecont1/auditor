@@ -13,6 +13,7 @@ import { CompanyPage } from './pages/settings/CompanyPage';
 import { UsersPage } from './pages/settings/UsersPage';
 import { BillingPage } from './pages/settings/BillingPage';
 import { SuperAdminCompaniesPage } from './pages/super-admin/CompaniesPage';
+import { AcceptInvitationPage } from './pages/AcceptInvitationPage';
 
 // Wrapper component for protected routes with layout
 function ProtectedWithLayout({ children, allowedRoles }: { children: React.ReactNode; allowedRoles?: Array<'SUPER_ADMIN' | 'ADMIN' | 'ANALYST'> }) {
@@ -30,7 +31,7 @@ function App() {
         <Routes>
           {/* Public routes */}
           <Route path="/login" element={<LoginPage />} />
-          <Route path="/accept-invitation/:token" element={<div>Accept Invitation Page</div>} />
+          <Route path="/accept-invite" element={<AcceptInvitationPage />} />
 
           {/* Protected routes - require authentication */}
           <Route path="/dashboard" element={

@@ -7,7 +7,7 @@ interface MainLayoutProps {
 }
 
 export function MainLayout({ children }: MainLayoutProps) {
-  const { user, logout } = useAuth();
+  const { user, logout, tokenBalance } = useAuth();
   const location = useLocation();
   const navigate = useNavigate();
 
@@ -53,6 +53,16 @@ export function MainLayout({ children }: MainLayoutProps) {
             </Link>
           </div>
           <div className="flex items-center gap-4">
+            {tokenBalance !== null && (
+              <Link
+                to="/tokens"
+                className="flex items-center gap-2 px-3 py-1.5 bg-indigo-50 text-indigo-700 rounded-lg hover:bg-indigo-100 transition-colors"
+              >
+                <span>🪙</span>
+                <span className="font-medium">{tokenBalance.toLocaleString()}</span>
+                <span className="text-xs text-indigo-500">tokens</span>
+              </Link>
+            )}
             <span className="text-sm text-slate-600">
               {user?.name} ({user?.role})
             </span>

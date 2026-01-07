@@ -24,35 +24,38 @@ export function DashboardPage() {
   const [stats, setStats] = useState<DashboardStats | null>(null);
   const [recentAnalyses, setRecentAnalyses] = useState<RecentAnalysis[]>([]);
   const [loading, setLoading] = useState(true);
+  const [error, setError] = useState<string | null>(null);
+
+  const fetchDashboardData = async () => {
+    setLoading(true);
+    setError(null);
+    try {
+      const [statsResponse, recentResponse] = await Promise.all([
+        fetch('/api/analysis/stats', {
+          headers: { Authorization: `Bearer ${token}` },
+        }),
+        fetch('/api/analysis/recent', {
+          headers: { Authorization: `Bearer ${token}` },
+        }),
+      ]);
+
+      if (!statsResponse.ok || !recentResponse.ok) {
+        throw new Error('Failed to load');
+      }
+
+      const statsData = await statsResponse.json();
+      setStats(statsData.stats);
+
+      const recentData = await recentResponse.json();
+      setRecentAnalyses(recentData.analyses);
+    } catch (err) {
+      setError('Unable to load dashboard data. Please check your connection and try again.');
+    } finally {
+      setLoading(false);
+    }
+  };
 
   useEffect(() => {
-    const fetchDashboardData = async () => {
-      try {
-        const [statsResponse, recentResponse] = await Promise.all([
-          fetch('/api/analysis/stats', {
-            headers: { Authorization: `Bearer ${token}` },
-          }),
-          fetch('/api/analysis/recent', {
-            headers: { Authorization: `Bearer ${token}` },
-          }),
-        ]);
-
-        if (statsResponse.ok) {
-          const data = await statsResponse.json();
-          setStats(data.stats);
-        }
-
-        if (recentResponse.ok) {
-          const data = await recentResponse.json();
-          setRecentAnalyses(data.analyses);
-        }
-      } catch (error) {
-        console.error('Failed to fetch dashboard data:', error);
-      } finally {
-        setLoading(false);
-      }
-    };
-
     fetchDashboardData();
   }, [token]);
 
@@ -92,6 +95,24 @@ export function DashboardPage() {
     }
   };
 
+  if (error) {
+    return (
+      <div className="bg-red-50 border border-red-200 rounded-lg p-6 text-center">
+        <svg className="w-12 h-12 mx-auto text-red-400 mb-4" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+          <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M12 9v2m0 4h.01m-6.938 4h13.856c1.54 0 2.502-1.667 1.732-3L13.732 4c-.77-1.333-2.694-1.333-3.464 0L3.34 16c-.77 1.333.192 3 1.732 3z" />
+        </svg>
+        <h3 className="text-lg font-medium text-red-800 mb-2">Connection Error</h3>
+        <p className="text-red-700 mb-4">{error}</p>
+        <button
+          onClick={fetchDashboardData}
+          className="px-4 py-2 bg-red-600 text-white rounded-lg hover:bg-red-700 transition-colors"
+        >
+          Try Again
+        </button>
+      </div>
+    );
+  }
+
   return (
     <div>
       <div className="flex justify-between items-center mb-8">
@@ -115,13 +136,13 @@ export function DashboardPage() {
         <div className="bg-white p-6 rounded-lg shadow">
           <h3 className="text-sm font-medium text-slate-600">Approval Rate</h3>
           <p className="text-3xl font-bold text-emerald-600 mt-2">
-            {loading ? '--' : stats?.approvalRate !== null ? `${stats.approvalRate}%` : '--'}
+            {loading ? '--' : (stats && stats.approvalRate !== null) ? `${stats.approvalRate}%` : '--'}
           </p>
         </div>
         <div className="bg-white p-6 rounded-lg shadow">
           <h3 className="text-sm font-medium text-slate-600">Avg Processing Time</h3>
           <p className="text-3xl font-bold text-slate-900 mt-2">
-            {loading ? '--' : stats?.avgProcessingTimeSeconds !== null ? `${stats.avgProcessingTimeSeconds}s` : '--'}
+            {loading ? '--' : (stats && stats.avgProcessingTimeSeconds !== null) ? `${stats.avgProcessingTimeSeconds}s` : '--'}
           </p>
         </div>
         <div className="bg-white p-6 rounded-lg shadow">

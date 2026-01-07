@@ -47,11 +47,31 @@ userRoutes.get('/me', requireAuth, async (c) => {
   }
 });
 
-// GET /api/users/:id - Get user by ID
+// GET /api/users/:id - Get user by ID (tenant-isolated)
 userRoutes.get('/:id', requireAuth, async (c) => {
-  const id = c.req.param('id');
-  // TODO: Implement get user
-  return c.json({ message: `Get user ${id} endpoint` });
+  try {
+    const id = c.req.param('id');
+    const tokenUser = c.get('user');
+
+    // Get current user to find their company
+    const currentUser = await getUserById(tokenUser.userId);
+    if (!currentUser || !currentUser.companyId) {
+      return c.json({ error: 'Not Found', message: 'Company not found' }, 404);
+    }
+
+    // Get the requested user
+    const user = await getUserById(id);
+
+    // Return 404 if user not found OR belongs to different company (tenant isolation)
+    if (!user || user.companyId !== currentUser.companyId) {
+      return c.json({ error: 'Not Found', message: 'User not found' }, 404);
+    }
+
+    return c.json({ user });
+  } catch (error) {
+    console.error('Get user error:', error);
+    return c.json({ error: 'Server Error', message: 'Failed to get user' }, 500);
+  }
 });
 
 // PUT /api/users/:id - Update user
