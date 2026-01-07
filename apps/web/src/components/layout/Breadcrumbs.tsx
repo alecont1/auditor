@@ -89,7 +89,7 @@ export function Breadcrumbs() {
               ) : (
                 <Link
                   to={crumb.path}
-                  className="text-indigo-600 hover:text-indigo-800 hover:underline"
+                  className="text-indigo-600 hover:text-indigo-800 hover:underline min-h-11 py-2 flex items-center"
                 >
                   {index === 0 ? (
                     <span className="flex items-center gap-1">

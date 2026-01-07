@@ -31,10 +31,10 @@ export function ProfilePage() {
         });
 
         if (response.ok) {
-          const data = await response.json();
-          setName(data.user.name || '');
-          setEmail(data.user.email || '');
-          setEmailNotifications(data.user.emailNotifications ?? true);
+          const user = await response.json();
+          setName(user.name || '');
+          setEmail(user.email || '');
+          setEmailNotifications(user.emailNotifications ?? true);
         }
       } catch (error) {
         console.error('Failed to fetch profile:', error);
@@ -212,7 +212,7 @@ export function ProfilePage() {
                 type="text"
                 value={name}
                 onChange={(e) => setName(e.target.value)}
-                className="w-full px-3 py-2 border border-slate-300 rounded-lg focus:outline-none focus:ring-2 focus:ring-indigo-500"
+                className="w-full px-3 py-2.5 min-h-11 border border-slate-300 rounded-lg focus:outline-none focus:ring-2 focus:ring-indigo-500"
                 placeholder="Your name"
               />
             </div>
@@ -224,7 +224,7 @@ export function ProfilePage() {
               <input
                 type="email"
                 value={email}
-                className="w-full px-3 py-2 border border-slate-300 rounded-lg bg-slate-50"
+                className="w-full px-3 py-2.5 min-h-11 border border-slate-300 rounded-lg bg-slate-50"
                 placeholder="your@email.com"
                 disabled
               />
@@ -247,7 +247,7 @@ export function ProfilePage() {
             <button
               type="submit"
               disabled={profileSaving}
-              className="w-full py-2 bg-indigo-600 text-white rounded-lg hover:bg-indigo-700 transition-colors disabled:opacity-50 disabled:cursor-not-allowed"
+              className="w-full py-2.5 min-h-11 bg-indigo-600 text-white rounded-lg hover:bg-indigo-700 transition-colors disabled:opacity-50 disabled:cursor-not-allowed"
             >
               {profileSaving ? 'Saving...' : 'Save Profile'}
             </button>
@@ -279,7 +279,7 @@ export function ProfilePage() {
                 type="password"
                 value={currentPassword}
                 onChange={(e) => setCurrentPassword(e.target.value)}
-                className="w-full px-3 py-2 border border-slate-300 rounded-lg focus:outline-none focus:ring-2 focus:ring-indigo-500"
+                className="w-full px-3 py-2.5 min-h-11 border border-slate-300 rounded-lg focus:outline-none focus:ring-2 focus:ring-indigo-500"
               />
             </div>
             <div>
@@ -294,7 +294,7 @@ export function ProfilePage() {
                   validateNewPassword(e.target.value);
                 }}
                 onBlur={(e) => validateNewPassword(e.target.value)}
-                className={`w-full px-3 py-2 border rounded-lg focus:outline-none focus:ring-2 focus:ring-indigo-500 ${
+                className={`w-full px-3 py-2.5 min-h-11 border rounded-lg focus:outline-none focus:ring-2 focus:ring-indigo-500 ${
                   newPasswordFieldError ? 'border-red-500' : 'border-slate-300'
                 }`}
               />
@@ -316,7 +316,7 @@ export function ProfilePage() {
                   validateConfirmPassword(e.target.value);
                 }}
                 onBlur={(e) => validateConfirmPassword(e.target.value)}
-                className={`w-full px-3 py-2 border rounded-lg focus:outline-none focus:ring-2 focus:ring-indigo-500 ${
+                className={`w-full px-3 py-2.5 min-h-11 border rounded-lg focus:outline-none focus:ring-2 focus:ring-indigo-500 ${
                   confirmPasswordFieldError ? 'border-red-500' : 'border-slate-300'
                 }`}
               />
@@ -328,7 +328,7 @@ export function ProfilePage() {
             <button
               type="submit"
               disabled={passwordChanging}
-              className="w-full py-2 bg-slate-800 text-white rounded-lg hover:bg-slate-900 transition-colors disabled:opacity-50 disabled:cursor-not-allowed"
+              className="w-full py-2.5 min-h-11 bg-slate-800 text-white rounded-lg hover:bg-slate-900 transition-colors disabled:opacity-50 disabled:cursor-not-allowed"
             >
               {passwordChanging ? 'Changing Password...' : 'Change Password'}
             </button>

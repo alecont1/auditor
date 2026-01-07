@@ -13,7 +13,7 @@ export function BillingPage() {
             </div>
             <a
               href="/tokens"
-              className="px-4 py-2 bg-indigo-600 text-white rounded-lg hover:bg-indigo-700"
+              className="px-4 py-2.5 min-h-11 flex items-center bg-indigo-600 text-white rounded-lg hover:bg-indigo-700"
             >
               Purchase More
             </a>

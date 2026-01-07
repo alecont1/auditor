@@ -295,7 +295,7 @@ export function NewAnalysisPage() {
                 <button
                   key={type}
                   onClick={() => setSelectedTestType(type)}
-                  className={`p-4 border-2 rounded-lg transition-colors text-left ${
+                  className={`p-4 min-h-[88px] border-2 rounded-lg transition-colors text-left ${
                     selectedTestType === type
                       ? 'border-indigo-500 bg-indigo-50'
                       : 'border-slate-200 hover:border-indigo-400'
@@ -346,7 +346,7 @@ export function NewAnalysisPage() {
             <button
               onClick={handleSubmit}
               disabled={!selectedFile || !selectedTestType || isSubmitting}
-              className="flex-1 py-3 bg-indigo-600 text-white rounded-lg font-medium hover:bg-indigo-700 transition-colors disabled:opacity-50 disabled:cursor-not-allowed"
+              className="flex-1 py-3 min-h-12 bg-indigo-600 text-white rounded-lg font-medium hover:bg-indigo-700 transition-colors disabled:opacity-50 disabled:cursor-not-allowed"
             >
               {isSubmitting ? (
                 <span className="flex items-center justify-center gap-2">
@@ -364,7 +364,7 @@ export function NewAnalysisPage() {
               type="button"
               onClick={handleCancel}
               disabled={isSubmitting}
-              className="px-6 py-3 border border-slate-300 text-slate-700 rounded-lg hover:bg-slate-50 transition-colors disabled:opacity-50"
+              className="px-6 py-3 min-h-12 border border-slate-300 text-slate-700 rounded-lg hover:bg-slate-50 transition-colors disabled:opacity-50"
             >
               Cancel
             </button>

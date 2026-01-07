@@ -108,7 +108,7 @@ export function AcceptInvitationPage() {
           <p className="text-slate-600 mb-6">{error}</p>
           <Link
             to="/login"
-            className="inline-block px-6 py-2 bg-indigo-600 text-white rounded-lg hover:bg-indigo-700"
+            className="inline-block px-6 py-2.5 min-h-11 bg-indigo-600 text-white rounded-lg hover:bg-indigo-700"
           >
             Go to Login
           </Link>
@@ -151,7 +151,7 @@ export function AcceptInvitationPage() {
               type="email"
               value={invitation?.email || ''}
               disabled
-              className="w-full px-4 py-2 border border-slate-300 rounded-lg bg-slate-50 text-slate-500"
+              className="w-full px-4 py-2.5 min-h-11 border border-slate-300 rounded-lg bg-slate-50 text-slate-500"
             />
           </div>
 
@@ -164,7 +164,7 @@ export function AcceptInvitationPage() {
               value={name}
               onChange={(e) => setName(e.target.value)}
               required
-              className="w-full px-4 py-2 border border-slate-300 rounded-lg focus:ring-2 focus:ring-indigo-500 focus:border-indigo-500"
+              className="w-full px-4 py-2.5 min-h-11 border border-slate-300 rounded-lg focus:ring-2 focus:ring-indigo-500 focus:border-indigo-500"
               placeholder="Enter your full name"
             />
           </div>
@@ -179,7 +179,7 @@ export function AcceptInvitationPage() {
               onChange={(e) => setPassword(e.target.value)}
               required
               minLength={8}
-              className="w-full px-4 py-2 border border-slate-300 rounded-lg focus:ring-2 focus:ring-indigo-500 focus:border-indigo-500"
+              className="w-full px-4 py-2.5 min-h-11 border border-slate-300 rounded-lg focus:ring-2 focus:ring-indigo-500 focus:border-indigo-500"
               placeholder="At least 8 characters"
             />
           </div>
@@ -194,7 +194,7 @@ export function AcceptInvitationPage() {
               onChange={(e) => setConfirmPassword(e.target.value)}
               required
               minLength={8}
-              className="w-full px-4 py-2 border border-slate-300 rounded-lg focus:ring-2 focus:ring-indigo-500 focus:border-indigo-500"
+              className="w-full px-4 py-2.5 min-h-11 border border-slate-300 rounded-lg focus:ring-2 focus:ring-indigo-500 focus:border-indigo-500"
               placeholder="Confirm your password"
             />
           </div>

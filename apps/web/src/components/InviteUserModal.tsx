@@ -54,7 +54,7 @@ export function InviteUserModal({ isOpen, onClose, onInvite }: InviteUserModalPr
               id="invite-email"
               value={email}
               onChange={(e) => setEmail(e.target.value)}
-              className="w-full px-3 py-2 border border-slate-300 rounded-lg focus:outline-none focus:ring-2 focus:ring-indigo-500"
+              className="w-full px-3 py-2.5 min-h-[44px] border border-slate-300 rounded-lg focus:outline-none focus:ring-2 focus:ring-indigo-500"
               placeholder="user@example.com"
               required
               autoFocus
@@ -69,7 +69,7 @@ export function InviteUserModal({ isOpen, onClose, onInvite }: InviteUserModalPr
               id="invite-role"
               value={role}
               onChange={(e) => setRole(e.target.value)}
-              className="w-full px-3 py-2 border border-slate-300 rounded-lg focus:outline-none focus:ring-2 focus:ring-indigo-500"
+              className="w-full px-3 py-2.5 min-h-[44px] border border-slate-300 rounded-lg focus:outline-none focus:ring-2 focus:ring-indigo-500"
             >
               <option value="ANALYST">Analyst</option>
               <option value="ADMIN">Admin</option>
@@ -92,14 +92,14 @@ export function InviteUserModal({ isOpen, onClose, onInvite }: InviteUserModalPr
           <button
             type="button"
             onClick={handleClose}
-            className="px-4 py-2 text-slate-600 hover:text-slate-900 border border-slate-300 rounded-lg hover:bg-slate-50"
+            className="px-4 py-2.5 min-h-[44px] text-slate-600 hover:text-slate-900 border border-slate-300 rounded-lg hover:bg-slate-50"
             disabled={loading}
           >
             Cancel
           </button>
           <button
             type="submit"
-            className="px-4 py-2 bg-indigo-600 text-white rounded-lg hover:bg-indigo-700 disabled:opacity-50"
+            className="px-4 py-2.5 min-h-[44px] bg-indigo-600 text-white rounded-lg hover:bg-indigo-700 disabled:opacity-50"
             disabled={loading || !email}
           >
             {loading ? 'Sending...' : 'Send Invitation'}

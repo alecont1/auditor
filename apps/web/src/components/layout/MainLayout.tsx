@@ -54,10 +54,10 @@ export function MainLayout({ children }: MainLayoutProps) {
       <header className="fixed top-0 left-0 right-0 h-16 bg-white border-b border-slate-200 z-50">
         <div className="flex items-center justify-between h-full px-4">
           <div className="flex items-center gap-4">
-            {/* Mobile Menu Button */}
+            {/* Mobile Menu Button - min 44px touch target */}
             <button
               onClick={() => setIsMobileMenuOpen(!isMobileMenuOpen)}
-              className="md:hidden p-2 text-slate-600 hover:text-slate-900 hover:bg-slate-100 rounded-lg"
+              className="md:hidden p-2.5 min-h-11 min-w-11 flex items-center justify-center text-slate-600 hover:text-slate-900 hover:bg-slate-100 rounded-lg"
               aria-label="Toggle menu"
             >
               <svg className="w-6 h-6" fill="none" stroke="currentColor" viewBox="0 0 24 24">
@@ -68,7 +68,7 @@ export function MainLayout({ children }: MainLayoutProps) {
                 )}
               </svg>
             </button>
-            <Link to="/dashboard" className="text-xl font-bold text-indigo-600">
+            <Link to="/dashboard" className="text-xl font-bold text-indigo-600 min-h-11 py-2 flex items-center">
               AuditEng
             </Link>
           </div>
@@ -76,7 +76,7 @@ export function MainLayout({ children }: MainLayoutProps) {
             {tokenBalance !== null && (
               <Link
                 to="/tokens"
-                className="flex items-center gap-1 md:gap-2 px-2 md:px-3 py-1.5 bg-indigo-50 text-indigo-700 rounded-lg hover:bg-indigo-100 transition-colors"
+                className="flex items-center gap-1 md:gap-2 px-2 md:px-3 py-2.5 min-h-11 bg-indigo-50 text-indigo-700 rounded-lg hover:bg-indigo-100 transition-colors"
               >
                 <span>🪙</span>
                 <span className="font-medium text-sm md:text-base">{tokenBalance.toLocaleString()}</span>
@@ -88,7 +88,7 @@ export function MainLayout({ children }: MainLayoutProps) {
             </span>
             <button
               onClick={handleLogout}
-              className="px-3 md:px-4 py-2 text-sm font-medium text-slate-600 hover:text-slate-900 hover:bg-slate-100 rounded-lg transition-colors"
+              className="px-3 md:px-4 py-2.5 min-h-11 text-sm font-medium text-slate-600 hover:text-slate-900 hover:bg-slate-100 rounded-lg transition-colors"
             >
               Logout
             </button>
@@ -117,7 +117,7 @@ export function MainLayout({ children }: MainLayoutProps) {
                 <Link
                   to={item.path}
                   onClick={closeMobileMenu}
-                  className={`flex items-center gap-3 px-4 py-2 rounded-lg transition-colors ${
+                  className={`flex items-center gap-3 px-4 py-3 min-h-11 rounded-lg transition-colors ${
                     isActive(item.path)
                       ? 'bg-indigo-50 text-indigo-600 font-medium'
                       : 'text-slate-600 hover:bg-slate-50 hover:text-slate-900'
@@ -142,7 +142,7 @@ export function MainLayout({ children }: MainLayoutProps) {
                     <Link
                       to={item.path}
                       onClick={closeMobileMenu}
-                      className={`flex items-center gap-3 px-4 py-2 rounded-lg transition-colors ${
+                      className={`flex items-center gap-3 px-4 py-3 min-h-11 rounded-lg transition-colors ${
                         isActive(item.path)
                           ? 'bg-indigo-50 text-indigo-600 font-medium'
                           : 'text-slate-600 hover:bg-slate-50 hover:text-slate-900'
@@ -169,7 +169,7 @@ export function MainLayout({ children }: MainLayoutProps) {
                     <Link
                       to={item.path}
                       onClick={closeMobileMenu}
-                      className={`flex items-center gap-3 px-4 py-2 rounded-lg transition-colors ${
+                      className={`flex items-center gap-3 px-4 py-3 min-h-11 rounded-lg transition-colors ${
                         isActive(item.path)
                           ? 'bg-indigo-50 text-indigo-600 font-medium'
                           : 'text-slate-600 hover:bg-slate-50 hover:text-slate-900'
@@ -195,7 +195,7 @@ export function MainLayout({ children }: MainLayoutProps) {
                 <Link
                   to={item.path}
                   title={item.label}
-                  className={`flex items-center justify-center lg:justify-start gap-3 px-2 lg:px-4 py-2 rounded-lg transition-colors ${
+                  className={`flex items-center justify-center lg:justify-start gap-3 px-2 lg:px-4 py-2.5 min-h-11 rounded-lg transition-colors ${
                     isActive(item.path)
                       ? 'bg-indigo-50 text-indigo-600 font-medium'
                       : 'text-slate-600 hover:bg-slate-50 hover:text-slate-900'
@@ -220,7 +220,7 @@ export function MainLayout({ children }: MainLayoutProps) {
                     <Link
                       to={item.path}
                       title={item.label}
-                      className={`flex items-center justify-center lg:justify-start gap-3 px-2 lg:px-4 py-2 rounded-lg transition-colors ${
+                      className={`flex items-center justify-center lg:justify-start gap-3 px-2 lg:px-4 py-2.5 min-h-11 rounded-lg transition-colors ${
                         isActive(item.path)
                           ? 'bg-indigo-50 text-indigo-600 font-medium'
                           : 'text-slate-600 hover:bg-slate-50 hover:text-slate-900'
@@ -247,7 +247,7 @@ export function MainLayout({ children }: MainLayoutProps) {
                     <Link
                       to={item.path}
                       title={item.label}
-                      className={`flex items-center justify-center lg:justify-start gap-3 px-2 lg:px-4 py-2 rounded-lg transition-colors ${
+                      className={`flex items-center justify-center lg:justify-start gap-3 px-2 lg:px-4 py-2.5 min-h-11 rounded-lg transition-colors ${
                         isActive(item.path)
                           ? 'bg-indigo-50 text-indigo-600 font-medium'
                           : 'text-slate-600 hover:bg-slate-50 hover:text-slate-900'

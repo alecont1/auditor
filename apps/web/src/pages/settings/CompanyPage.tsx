@@ -22,8 +22,9 @@ export function CompanyPage() {
   const [error, setError] = useState<string | null>(null);
   const [uploadProgress, setUploadProgress] = useState<number | null>(null);
 
-  // Check if form is dirty (has unsaved changes)
-  const isDirty = companyName !== originalName || defaultStandard !== originalStandard;
+  // Check if form is dirty (has unsaved changes) - for future use
+  const _isDirty = companyName !== originalName || defaultStandard !== originalStandard;
+  void _isDirty; // Suppress unused warning
 
   useEffect(() => {
     const fetchCompany = async () => {
@@ -269,7 +270,7 @@ export function CompanyPage() {
                 type="text"
                 value={companyName}
                 onChange={(e) => setCompanyName(e.target.value)}
-                className="w-full px-3 py-2 border border-slate-300 rounded-lg focus:outline-none focus:ring-2 focus:ring-indigo-500"
+                className="w-full px-3 py-2.5 min-h-11 border border-slate-300 rounded-lg focus:outline-none focus:ring-2 focus:ring-indigo-500"
                 placeholder="Your company name"
               />
             </div>
@@ -306,7 +307,7 @@ export function CompanyPage() {
                     type="button"
                     onClick={handleLogoClick}
                     disabled={uploading}
-                    className="px-4 py-2 border border-slate-300 rounded-lg hover:bg-slate-50 disabled:opacity-50 disabled:cursor-not-allowed"
+                    className="px-4 py-2.5 min-h-11 border border-slate-300 rounded-lg hover:bg-slate-50 disabled:opacity-50 disabled:cursor-not-allowed"
                   >
                     {uploading ? 'Uploading...' : 'Upload Logo'}
                   </button>
@@ -335,7 +336,7 @@ export function CompanyPage() {
               <select
                 value={defaultStandard}
                 onChange={(e) => setDefaultStandard(e.target.value)}
-                className="w-full px-3 py-2 border border-slate-300 rounded-lg focus:outline-none focus:ring-2 focus:ring-indigo-500"
+                className="w-full px-3 py-2.5 min-h-11 border border-slate-300 rounded-lg focus:outline-none focus:ring-2 focus:ring-indigo-500"
               >
                 <option value="NETA">NETA ATS-2021</option>
                 <option value="MICROSOFT">Microsoft CxPOR</option>
@@ -348,7 +349,7 @@ export function CompanyPage() {
             <button
               type="submit"
               disabled={saving}
-              className="w-full py-2 bg-indigo-600 text-white rounded-lg hover:bg-indigo-700 transition-colors disabled:opacity-50 disabled:cursor-not-allowed"
+              className="w-full py-2.5 min-h-11 bg-indigo-600 text-white rounded-lg hover:bg-indigo-700 transition-colors disabled:opacity-50 disabled:cursor-not-allowed"
             >
               {saving ? 'Saving...' : 'Save Changes'}
             </button>

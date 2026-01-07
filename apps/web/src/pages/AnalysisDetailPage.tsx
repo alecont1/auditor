@@ -40,6 +40,7 @@ export function AnalysisDetailPage() {
   const [estimatedTokens, setEstimatedTokens] = useState<number | null>(null);
   const [showCompletedMessage, setShowCompletedMessage] = useState(false);
   const [wasProcessing, setWasProcessing] = useState(false);
+  const [showExportMenu, setShowExportMenu] = useState(false);
 
   useEffect(() => {
     let pollInterval: ReturnType<typeof setInterval> | null = null;
@@ -237,6 +238,46 @@ export function AnalysisDetailPage() {
     }
   };
 
+  const handleExport = async (format: 'json' | 'csv') => {
+    if (!analysis) return;
+    setShowExportMenu(false);
+
+    try {
+      const response = await fetch(`/api/analysis/${analysis.id}/export?format=${format}`, {
+        headers: {
+          Authorization: `Bearer ${token}`,
+        },
+      });
+
+      if (!response.ok) {
+        throw new Error('Failed to export analysis');
+      }
+
+      // Get filename from Content-Disposition header or create one
+      const contentDisposition = response.headers.get('Content-Disposition');
+      let filename = `${analysis.filename.replace('.pdf', '')}_export.${format}`;
+      if (contentDisposition) {
+        const match = contentDisposition.match(/filename="(.+)"/);
+        if (match) {
+          filename = match[1];
+        }
+      }
+
+      // Download the file
+      const blob = await response.blob();
+      const url = window.URL.createObjectURL(blob);
+      const link = document.createElement('a');
+      link.href = url;
+      link.download = filename;
+      document.body.appendChild(link);
+      link.click();
+      document.body.removeChild(link);
+      window.URL.revokeObjectURL(url);
+    } catch (err) {
+      alert(err instanceof Error ? err.message : 'Failed to export analysis');
+    }
+  };
+
   if (loading) {
     return (
       <div className="flex items-center justify-center h-64">
@@ -398,9 +439,46 @@ export function AnalysisDetailPage() {
           >
             Re-analyze
           </button>
-          <button className="px-4 py-2.5 min-h-11 border border-slate-300 rounded-lg hover:bg-slate-50">
-            Export
-          </button>
+          <div className="relative">
+            <button
+              onClick={() => setShowExportMenu(!showExportMenu)}
+              className="px-4 py-2.5 min-h-11 border border-slate-300 rounded-lg hover:bg-slate-50 flex items-center gap-2"
+            >
+              Export
+              <svg className="w-4 h-4" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M19 9l-7 7-7-7" />
+              </svg>
+            </button>
+            {showExportMenu && (
+              <>
+                {/* Backdrop to close menu when clicking outside */}
+                <div
+                  className="fixed inset-0 z-10"
+                  onClick={() => setShowExportMenu(false)}
+                />
+                <div className="absolute right-0 mt-2 w-48 bg-white rounded-lg shadow-lg border border-slate-200 z-20">
+                  <button
+                    onClick={() => handleExport('json')}
+                    className="w-full px-4 py-2.5 text-left text-sm text-slate-700 hover:bg-slate-50 rounded-t-lg flex items-center gap-2"
+                  >
+                    <svg className="w-4 h-4" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                      <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M9 12h6m-6 4h6m2 5H7a2 2 0 01-2-2V5a2 2 0 012-2h5.586a1 1 0 01.707.293l5.414 5.414a1 1 0 01.293.707V19a2 2 0 01-2 2z" />
+                    </svg>
+                    Export as JSON
+                  </button>
+                  <button
+                    onClick={() => handleExport('csv')}
+                    className="w-full px-4 py-2.5 text-left text-sm text-slate-700 hover:bg-slate-50 rounded-b-lg flex items-center gap-2"
+                  >
+                    <svg className="w-4 h-4" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                      <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M3 10h18M3 14h18m-9-4v8m-7 0h14a2 2 0 002-2V8a2 2 0 00-2-2H5a2 2 0 00-2 2v8a2 2 0 002 2z" />
+                    </svg>
+                    Export as CSV
+                  </button>
+                </div>
+              </>
+            )}
+          </div>
           <button
             onClick={() => setShowDeleteConfirm(true)}
             className="px-4 py-2.5 min-h-11 border border-red-300 text-red-600 rounded-lg hover:bg-red-50"

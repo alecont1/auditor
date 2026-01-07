@@ -136,7 +136,7 @@ export function UsersPage() {
             <p className="text-red-700 mb-4">{error}</p>
             <button
               onClick={fetchUsers}
-              className="px-4 py-2 bg-red-600 text-white rounded-lg hover:bg-red-700 transition-colors"
+              className="px-4 py-2.5 min-h-11 bg-red-600 text-white rounded-lg hover:bg-red-700 transition-colors"
             >
               Try Again
             </button>
@@ -153,7 +153,7 @@ export function UsersPage() {
           <h1 className="text-2xl font-bold text-slate-900">User Management</h1>
           <button
             onClick={() => setIsInviteModalOpen(true)}
-            className="px-4 py-2 bg-indigo-600 text-white rounded-lg hover:bg-indigo-700"
+            className="px-4 py-2.5 min-h-11 bg-indigo-600 text-white rounded-lg hover:bg-indigo-700"
           >
             Invite User
           </button>

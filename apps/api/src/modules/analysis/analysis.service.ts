@@ -92,16 +92,293 @@ export async function createAnalysis(
   return analysis;
 }
 
+/**
+ * Generate test-type-specific extraction data
+ *
+ * For deterministic testing, certain filename patterns force specific scenarios:
+ * - "LOW_IR" in filename: Forces IR < 100MΩ (triggers MEG-002)
+ * - "LOW_ABSORPTION" in filename: Forces absorption index < 1.4 (triggers MEG-003)
+ * - "MISSING_COMBO" in filename: Forces missing SxT combination (triggers MEG-001)
+ */
+function generateExtractionData(
+  testType: string,
+  testDate: string,
+  calibrationExpiryDate: string,
+  calibrationExpired: boolean,
+  calibrationExpiringToday: boolean,
+  filename?: string
+) {
+  const baseData = {
+    equipmentId: 'EQ-001',
+    testDate,
+    calibrationCertificate: {
+      serialNumber: 'CAL-2024-' + Math.floor(Math.random() * 10000).toString().padStart(5, '0'),
+      expiryDate: calibrationExpiryDate,
+      isExpired: calibrationExpired,
+      isExpiringToday: calibrationExpiringToday,
+    },
+  };
+
+  // Check for test scenario flags in filename
+  const forceLowIR = filename?.toUpperCase().includes('LOW_IR');
+  const forceLowAbsorption = filename?.toUpperCase().includes('LOW_ABSORPTION');
+  const forceMissingCombo = filename?.toUpperCase().includes('MISSING_COMBO');
+
+  switch (testType) {
+    case 'MEGGER':
+      // Force failure scenarios based on filename, otherwise 80% pass rate
+      const irPasses = forceLowIR ? false : Math.random() < 0.8;
+      const generateIRValue = () => irPasses
+        ? Math.floor(Math.random() * 5000) + 200 // 200-5200 MΩ (passes)
+        : Math.floor(Math.random() * 80) + 20; // 20-99 MΩ (fails)
+
+      // Force failure scenarios based on filename, otherwise 80% pass rate
+      const absorptionPasses = forceLowAbsorption ? false : Math.random() < 0.8;
+      const absorptionIdx = absorptionPasses
+        ? 1.5 + Math.random() * 1.5 // 1.5-3.0 (passes)
+        : 1.0 + Math.random() * 0.3; // 1.0-1.3 (fails)
+
+      return {
+        ...baseData,
+        testVoltage: {
+          value: 1000,
+          unit: 'V',
+          confidence: 0.95 + Math.random() * 0.04,
+          source: 'report_header',
+          page: 1,
+        },
+        absorptionIndex: {
+          value: parseFloat(absorptionIdx.toFixed(2)),
+          confidence: 0.88 + Math.random() * 0.10,
+          source: 'report_table',
+          page: 1,
+        },
+        polarizationIndex: {
+          value: parseFloat((2.0 + Math.random() * 2.0).toFixed(2)),
+          confidence: 0.85 + Math.random() * 0.12,
+          source: 'report_table',
+          page: 1,
+        },
+        insulationResistance: {
+          // 6 combinations for 3-phase insulation testing
+          // If forceMissingCombo, omit SxT to trigger MEG-001
+          RxS: { value: generateIRValue(), unit: 'MΩ', confidence: 0.90 + Math.random() * 0.09, source: 'report_table', page: 1 },
+          RxT: { value: generateIRValue(), unit: 'MΩ', confidence: 0.90 + Math.random() * 0.09, source: 'report_table', page: 1 },
+          ...(forceMissingCombo ? {} : { SxT: { value: generateIRValue(), unit: 'MΩ', confidence: 0.90 + Math.random() * 0.09, source: 'report_table', page: 1 } }),
+          RxMASS: { value: generateIRValue(), unit: 'MΩ', confidence: 0.90 + Math.random() * 0.09, source: 'report_table', page: 1 },
+          SxMASS: { value: generateIRValue(), unit: 'MΩ', confidence: 0.90 + Math.random() * 0.09, source: 'report_table', page: 1 },
+          TxMASS: { value: generateIRValue(), unit: 'MΩ', confidence: 0.90 + Math.random() * 0.09, source: 'report_table', page: 1 },
+        },
+        allCombinationsPresent: {
+          value: !forceMissingCombo, // False if missing combo scenario
+          confidence: 0.95 + Math.random() * 0.04,
+          source: 'report_analysis',
+          page: 1,
+        },
+        temperature: {
+          value: 20 + Math.floor(Math.random() * 15),
+          unit: '°C',
+          confidence: 0.92 + Math.random() * 0.07,
+          source: 'report_header',
+          page: 1,
+        },
+        humidity: {
+          value: 30 + Math.floor(Math.random() * 40),
+          unit: '%',
+          confidence: 0.88 + Math.random() * 0.10,
+          source: 'report_header',
+          page: 1,
+        },
+        instrumentCalibration: {
+          ...baseData.calibrationCertificate,
+          confidence: 0.92 + Math.random() * 0.07,
+          source: 'certificate',
+          page: 3,
+        },
+      };
+
+    case 'THERMOGRAPHY':
+      // Generate load readings (percentage of rated load)
+      const minLoadReading = 50 + Math.floor(Math.random() * 30); // 50-80%
+      const maxLoadReading = minLoadReading + 10 + Math.floor(Math.random() * 20); // Higher than min
+
+      // Phase temperatures for delta T calculation
+      const phaseATemp = 35 + Math.floor(Math.random() * 25); // 35-60°C
+      const phaseBTemp = 35 + Math.floor(Math.random() * 25);
+      const phaseCTemp = 35 + Math.floor(Math.random() * 25);
+      const maxPhaseTemp = Math.max(phaseATemp, phaseBTemp, phaseCTemp);
+      const minPhaseTemp = Math.min(phaseATemp, phaseBTemp, phaseCTemp);
+      const phaseToPhaseDeltatT = maxPhaseTemp - minPhaseTemp; // Delta T between phases
+
+      const ambientTemp = 20 + Math.floor(Math.random() * 10); // 20-30°C
+      const reflectedTemp = ambientTemp + Math.floor(Math.random() * 5) - 2; // Close to ambient
+
+      return {
+        ...baseData,
+        // Required fields per spec (ai_extraction_thermography)
+        minimumLoadReading: {
+          value: minLoadReading,
+          unit: '%',
+          confidence: 0.85 + Math.random() * 0.14,
+          source: 'report_table',
+          page: 1,
+        },
+        maximumLoadReading: {
+          value: maxLoadReading,
+          unit: '%',
+          confidence: 0.85 + Math.random() * 0.14,
+          source: 'report_table',
+          page: 1,
+        },
+        phaseToPhaseDeltatT: {
+          value: phaseToPhaseDeltatT,
+          unit: '°C',
+          confidence: 0.85 + Math.random() * 0.14,
+          source: 'thermal_image',
+          page: 2,
+        },
+        ambientTemperature: {
+          value: ambientTemp,
+          unit: '°C',
+          confidence: 0.90 + Math.random() * 0.09,
+          source: 'report_header',
+          page: 1,
+        },
+        reflectedTemperature: {
+          value: reflectedTemp,
+          unit: '°C',
+          confidence: 0.85 + Math.random() * 0.14,
+          source: 'thermal_image',
+          page: 2,
+        },
+        twoMandatoryReadingsDetected: {
+          value: true, // Both min and max load readings present
+          confidence: 0.95 + Math.random() * 0.04,
+          source: 'report_analysis',
+          page: 1,
+        },
+        // Additional detail fields
+        phaseTemperatures: {
+          phaseA: { value: phaseATemp, unit: '°C', confidence: 0.88 + Math.random() * 0.11 },
+          phaseB: { value: phaseBTemp, unit: '°C', confidence: 0.88 + Math.random() * 0.11 },
+          phaseC: { value: phaseCTemp, unit: '°C', confidence: 0.88 + Math.random() * 0.11 },
+        },
+        emissivity: 0.85 + Math.random() * 0.1, // 0.85-0.95
+        hotSpots: [
+          {
+            location: 'Panel A - Breaker 1',
+            temperature: 45 + Math.floor(Math.random() * 30), // 45-75°C
+            referenceTemp: 25,
+            deltaT: 20 + Math.floor(Math.random() * 30),
+            severity: Math.random() > 0.7 ? 'HIGH' : Math.random() > 0.4 ? 'MEDIUM' : 'LOW',
+          },
+          {
+            location: 'Panel B - Main Bus',
+            temperature: 35 + Math.floor(Math.random() * 20), // 35-55°C
+            referenceTemp: 25,
+            deltaT: 10 + Math.floor(Math.random() * 20),
+            severity: Math.random() > 0.7 ? 'HIGH' : Math.random() > 0.4 ? 'MEDIUM' : 'LOW',
+          },
+        ],
+        cameraModel: 'FLIR E96',
+        imageCount: 5 + Math.floor(Math.random() * 10),
+      };
+
+    case 'GROUNDING':
+    default:
+      // Generate ground resistance value
+      // 80% chance: passes (< 5 ohm), 20% chance: fails (> 5 ohm)
+      const resistancePasses = Math.random() < 0.8;
+      const groundResistance = resistancePasses
+        ? 0.5 + Math.random() * 3.5 // 0.5-4.0 ohm (passes)
+        : 5.5 + Math.random() * 4.5; // 5.5-10.0 ohm (fails)
+
+      // Watermark detection - 85% chance present
+      const hasWatermark = Math.random() < 0.85;
+
+      // Technician signature - 90% chance present
+      const hasTechnicianSignature = Math.random() < 0.9;
+
+      return {
+        ...baseData,
+        // Required fields per spec (ai_extraction_grounding)
+        groundResistance: {
+          value: parseFloat(groundResistance.toFixed(2)),
+          unit: 'Ω',
+          confidence: 0.90 + Math.random() * 0.09,
+          source: 'report_table',
+          page: 1,
+        },
+        calibrationCertificate: {
+          ...baseData.calibrationCertificate,
+          confidence: 0.92 + Math.random() * 0.07,
+          source: 'certificate',
+          page: 3,
+        },
+        watermarkPresent: {
+          value: hasWatermark,
+          confidence: hasWatermark ? 0.95 + Math.random() * 0.04 : 0.85 + Math.random() * 0.10,
+          source: 'photo_analysis',
+          page: 2,
+        },
+        watermarkTimestamp: hasWatermark ? {
+          value: new Date().toISOString(),
+          confidence: 0.88 + Math.random() * 0.10,
+          source: 'photo_watermark',
+          page: 2,
+        } : null,
+        technicianSignature: {
+          present: hasTechnicianSignature,
+          confidence: 0.92 + Math.random() * 0.07,
+          source: 'report_footer',
+          page: 1,
+        },
+        instrumentSerialNumber: {
+          value: 'SN-' + Math.floor(Math.random() * 1000000).toString().padStart(6, '0'),
+          confidence: 0.88 + Math.random() * 0.10,
+          source: Math.random() > 0.5 ? 'header' : Math.random() > 0.5 ? 'photo' : 'certificate',
+          page: Math.random() > 0.5 ? 1 : 3,
+        },
+        // Additional readings for completeness
+        readings: [
+          { point: 'A', value: parseFloat((groundResistance * (0.9 + Math.random() * 0.2)).toFixed(2)), unit: 'Ω', confidence: 0.88 + Math.random() * 0.11 },
+          { point: 'B', value: parseFloat((groundResistance * (0.9 + Math.random() * 0.2)).toFixed(2)), unit: 'Ω', confidence: 0.88 + Math.random() * 0.11 },
+          { point: 'C', value: parseFloat((groundResistance * (0.9 + Math.random() * 0.2)).toFixed(2)), unit: 'Ω', confidence: 0.88 + Math.random() * 0.11 },
+        ],
+        soilResistivity: {
+          value: 50 + Math.floor(Math.random() * 150), // 50-200 Ω·m
+          unit: 'Ω·m',
+          confidence: 0.85 + Math.random() * 0.10,
+          source: 'report_table',
+          page: 1,
+        },
+        electrodeDepth: {
+          value: 2.4,
+          unit: 'm',
+          confidence: 0.90 + Math.random() * 0.08,
+          source: 'report_table',
+          page: 1,
+        },
+        testMethod: {
+          value: 'Fall-of-Potential',
+          confidence: 0.95 + Math.random() * 0.04,
+          source: 'report_header',
+          page: 1,
+        },
+      };
+  }
+}
+
 // Simulate background processing (for development)
 // Exported for reanalysis workflow
 export async function simulateProcessing(analysisId: string) {
   // Wait 2 seconds then mark as completed
   setTimeout(async () => {
     try {
-      // Get the analysis to find userId and companyId
+      // Get the analysis to find userId, companyId, and testType
       const analysis = await prisma.analysis.findUnique({
         where: { id: analysisId },
-        select: { userId: true, companyId: true, filename: true },
+        select: { userId: true, companyId: true, filename: true, testType: true },
       });
 
       if (!analysis) {
@@ -150,7 +427,11 @@ export async function simulateProcessing(analysisId: string) {
       const calibrationExpired = isCalibrationExpired(calibrationExpiryDate, testDate);
       const calibrationExpiringToday = isCalibrationExpiringToday(calibrationExpiryDate, testDate);
 
-      // Build non-conformities list
+      // Generate extraction data first to access values for validation
+      // Pass filename to enable deterministic test scenarios (e.g., LOW_IR, LOW_ABSORPTION, MISSING_COMBO)
+      const extractionData = generateExtractionData(analysis.testType, testDate, calibrationExpiryDate, calibrationExpired, calibrationExpiringToday, analysis.filename);
+
+      // Build non-conformities list based on test type
       const nonConformities: Array<{
         code: string;
         severity: 'CRITICAL' | 'MAJOR' | 'MINOR';
@@ -178,15 +459,150 @@ export async function simulateProcessing(analysisId: string) {
         });
       }
 
+      // Test-type specific validations
+      if (analysis.testType === 'GROUNDING') {
+        // GND-001: Maximum resistance check (5 ohm for NETA, 1 ohm for Microsoft critical)
+        const groundResistance = (extractionData as any).groundResistance?.value;
+        if (groundResistance && groundResistance > 5) {
+          nonConformities.push({
+            code: 'GND-001',
+            severity: 'CRITICAL',
+            description: 'Ground resistance exceeds maximum allowed value',
+            evidence: `Measured resistance: ${groundResistance}Ω, maximum allowed: 5Ω (NETA ATS-2021)`,
+            correctiveAction: 'Investigate grounding system, add ground rods or improve soil contact',
+          });
+        }
+
+        // GND-004: Watermark presence check on photos
+        const watermarkPresent = (extractionData as any).watermarkPresent?.value;
+        if (!watermarkPresent) {
+          nonConformities.push({
+            code: 'GND-004',
+            severity: 'MAJOR',
+            description: 'Watermark not detected on photo evidence',
+            evidence: 'Photo analysis did not detect timestamp watermark on test photos',
+            correctiveAction: 'Re-submit photos with visible timestamp watermarks',
+          });
+        }
+
+        // GND-005: Technician signature presence check
+        const technicianSignature = (extractionData as any).technicianSignature?.present;
+        if (!technicianSignature) {
+          nonConformities.push({
+            code: 'GND-005',
+            severity: 'MAJOR',
+            description: 'Technician signature not detected',
+            evidence: 'Report footer does not contain technician signature',
+            correctiveAction: 'Report must be signed by certified technician',
+          });
+        }
+      } else if (analysis.testType === 'MEGGER') {
+        // MEG-001: Check if all 6 combinations present
+        const ir = (extractionData as any).insulationResistance;
+        const requiredCombinations = ['RxS', 'RxT', 'SxT', 'RxMASS', 'SxMASS', 'TxMASS'];
+        // Check for missing combinations - a combination is missing if:
+        // 1. The key doesn't exist in ir object, OR
+        // 2. The value property is undefined/null (but 0 is a valid value)
+        const missingCombinations = requiredCombinations.filter(c => {
+          if (!ir || !ir[c]) return true; // Key doesn't exist
+          const val = ir[c]?.value;
+          return val === undefined || val === null;
+        });
+        if (missingCombinations.length > 0) {
+          nonConformities.push({
+            code: 'MEG-001',
+            severity: 'CRITICAL',
+            description: 'Missing required insulation resistance combinations',
+            evidence: `Missing combinations: ${missingCombinations.join(', ')}`,
+            correctiveAction: 'Complete all 6 insulation resistance measurements',
+          });
+        }
+
+        // MEG-002: Minimum IR check (100MΩ @ 1000V for MV cables)
+        const irValues = ir ? Object.values(ir).filter((v: any) => v?.value !== undefined).map((v: any) => v.value) : [];
+        if (irValues.length > 0) {
+          const minIR = Math.min(...(irValues as number[]));
+          if (minIR < 100) {
+            nonConformities.push({
+              code: 'MEG-002',
+              severity: 'CRITICAL',
+              description: 'Insulation resistance below minimum threshold',
+              evidence: `Minimum IR reading: ${minIR}MΩ, required: ≥100MΩ @ 1000V`,
+              correctiveAction: 'Investigate insulation failure and repair before energizing',
+            });
+          }
+        }
+
+        // MEG-003: Absorption index check (> 1.4 for approval)
+        const absorptionIndexData = (extractionData as any).absorptionIndex;
+        const absorptionIndex = absorptionIndexData?.value ?? absorptionIndexData;
+        if (absorptionIndex !== undefined && absorptionIndex < 1.4) {
+          nonConformities.push({
+            code: 'MEG-003',
+            severity: 'MAJOR',
+            description: 'Absorption index below acceptable threshold',
+            evidence: `Absorption index: ${typeof absorptionIndex === 'number' ? absorptionIndex.toFixed(2) : absorptionIndex}, required: >1.4`,
+            correctiveAction: 'Investigate moisture ingress or contamination',
+          });
+        }
+      } else if (analysis.testType === 'THERMOGRAPHY') {
+        // THM-001: Phase-to-phase delta T check (> 15°C = CRITICAL for NETA, > 3°C = comment for Microsoft)
+        const deltaT = (extractionData as any).phaseToPhaseDeltatT?.value;
+        if (deltaT && deltaT > 15) {
+          nonConformities.push({
+            code: 'THM-001',
+            severity: 'CRITICAL',
+            description: 'Phase-to-phase temperature differential exceeds critical threshold',
+            evidence: `Delta T: ${deltaT}°C, maximum allowed: 15°C (NETA ATS-2021)`,
+            correctiveAction: 'Immediate investigation required - possible loose connection or overload',
+          });
+        } else if (deltaT && deltaT > 3) {
+          nonConformities.push({
+            code: 'THM-002',
+            severity: 'MINOR',
+            description: 'Phase-to-phase temperature differential requires comment',
+            evidence: `Delta T: ${deltaT}°C exceeds 3°C threshold (Microsoft CxPOR)`,
+            correctiveAction: 'Monitor and document - schedule follow-up inspection',
+          });
+        }
+
+        // THM-003: Two mandatory readings check
+        const twoReadings = (extractionData as any).twoMandatoryReadingsDetected?.value;
+        if (!twoReadings) {
+          nonConformities.push({
+            code: 'THM-003',
+            severity: 'MAJOR',
+            description: 'Missing mandatory load readings',
+            evidence: 'Report does not contain both minimum and maximum load readings',
+            correctiveAction: 'Re-test with measurements at both low and high load conditions',
+          });
+        }
+
+        // THM-004: Reflected temperature documentation check
+        const reflectedTemp = (extractionData as any).reflectedTemperature?.value;
+        if (reflectedTemp === undefined || reflectedTemp === null) {
+          nonConformities.push({
+            code: 'THM-004',
+            severity: 'MINOR',
+            description: 'Reflected temperature not documented',
+            evidence: 'Thermal image analysis did not find reflected temperature setting',
+            correctiveAction: 'Document reflected temperature used for IR camera calibration',
+          });
+        }
+      }
+
       // Determine verdict based on validation results
-      // Automatic REJECTION for expired calibration
+      // Automatic REJECTION for expired calibration or any CRITICAL non-conformity
       let finalVerdict: 'APPROVED' | 'APPROVED_WITH_COMMENTS' | 'REJECTED';
       let score: number;
 
-      if (calibrationExpired) {
+      const hasCritical = nonConformities.some(nc => nc.severity === 'CRITICAL');
+      const hasMajor = nonConformities.some(nc => nc.severity === 'MAJOR');
+
+      if (calibrationExpired || hasCritical) {
         finalVerdict = 'REJECTED';
         score = Math.floor(Math.random() * 20) + 30; // 30-49
-      } else if (nonConformities.length > 0) {
+      } else if (hasMajor || nonConformities.length > 0) {
         finalVerdict = 'APPROVED_WITH_COMMENTS';
         score = Math.floor(Math.random() * 15) + 75; // 75-89
       } else {
@@ -205,21 +621,7 @@ export async function simulateProcessing(analysisId: string) {
           tokensConsumed,
           processingTimeMs: Math.floor(Math.random() * 5000) + 2000,
           completedAt: new Date(),
-          extractionData: JSON.stringify({
-            equipmentId: 'EQ-001',
-            testDate,
-            calibrationCertificate: {
-              serialNumber: 'CAL-2024-' + Math.floor(Math.random() * 10000).toString().padStart(5, '0'),
-              expiryDate: calibrationExpiryDate,
-              isExpired: calibrationExpired,
-              isExpiringToday: calibrationExpiringToday,
-            },
-            readings: [
-              { point: 'A', value: 0.5, unit: 'ohms' },
-              { point: 'B', value: 0.7, unit: 'ohms' },
-              { point: 'C', value: 0.4, unit: 'ohms' },
-            ],
-          }),
+          extractionData: JSON.stringify(extractionData),
           nonConformities: JSON.stringify(nonConformities),
         },
       });
