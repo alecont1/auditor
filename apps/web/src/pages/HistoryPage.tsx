@@ -345,7 +345,7 @@ export function HistoryPage() {
         );
       case 'APPROVED_WITH_COMMENTS':
         return (
-          <span className="px-2 py-1 text-xs font-medium bg-amber-100 text-amber-800 rounded">
+          <span className="px-2 py-1 text-xs font-medium bg-orange-100 text-orange-800 rounded">
             Approved with Comments
           </span>
         );

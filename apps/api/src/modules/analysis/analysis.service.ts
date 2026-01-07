@@ -452,13 +452,18 @@ export async function simulateProcessing(analysisId: string) {
       // Simulate extraction data with calibration info
       const testDate = new Date().toISOString().split('T')[0]; // Today's date in YYYY-MM-DD format
 
+      // Check for test scenario flags that require valid calibration
+      const forceValidCalibration = analysis.filename?.toUpperCase().includes('CLEAN') ||
+                                    analysis.filename?.toUpperCase().includes('MAJOR_ISSUE');
+
       // Simulate different calibration scenarios:
+      // - Force valid if CLEAN or MAJOR_ISSUE flag (to ensure APPROVED/APPROVED_WITH_COMMENTS)
       // - 70% chance: valid calibration (expires 6 months from now)
       // - 15% chance: expiring today
       // - 15% chance: expired (expired yesterday)
       const random = Math.random();
       let calibrationExpiryDate: string;
-      if (random < 0.70) {
+      if (forceValidCalibration || random < 0.70) {
         // Valid: expires 6 months from now
         const futureDate = new Date();
         futureDate.setMonth(futureDate.getMonth() + 6);
