@@ -12,6 +12,8 @@ interface Analysis {
   status: string;
   verdict: string | null;
   score: number | null;
+  overallConfidence: number | null;
+  requiresReview: boolean;
   createdAt: string;
   user: {
     id: string;
@@ -621,7 +623,16 @@ export function HistoryPage() {
                     </Link>
                   </td>
                   <td className="px-6 py-4 text-sm text-slate-600">{analysis.testType}</td>
-                  <td className="px-6 py-4">{getVerdictBadge(analysis.verdict, analysis.status)}</td>
+                  <td className="px-6 py-4">
+                    <div className="flex flex-col gap-1">
+                      {getVerdictBadge(analysis.verdict, analysis.status)}
+                      {analysis.requiresReview && (
+                        <span className="px-2 py-0.5 text-xs font-medium bg-purple-100 text-purple-800 rounded inline-block w-fit">
+                          Requires Review
+                        </span>
+                      )}
+                    </div>
+                  </td>
                   <td className="px-6 py-4 text-sm text-slate-600">
                     {analysis.score !== null ? `${analysis.score}%` : '--'}
                   </td>

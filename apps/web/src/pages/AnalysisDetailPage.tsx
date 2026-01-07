@@ -11,6 +11,7 @@ interface Analysis {
   verdict: string | null;
   score: number | null;
   overallConfidence: number | null;
+  requiresReview: boolean;
   tokensConsumed: number;
   processingTimeMs: number | null;
   extractionData: string | null;
@@ -550,8 +551,15 @@ export function AnalysisDetailPage() {
               {analysis.testType} • {analysis.standardUsed} Standard
             </p>
           </div>
-          <div className={`px-6 py-3 rounded-lg text-lg font-semibold ${getVerdictColor(analysis.verdict, analysis.status)}`}>
-            {analysis.verdict || analysis.status}
+          <div className="flex flex-col items-end gap-2">
+            <div className={`px-6 py-3 rounded-lg text-lg font-semibold ${getVerdictColor(analysis.verdict, analysis.status)}`}>
+              {analysis.verdict || analysis.status}
+            </div>
+            {analysis.requiresReview && (
+              <span className="px-3 py-1 text-sm font-medium bg-purple-100 text-purple-800 rounded">
+                Requires Review
+              </span>
+            )}
           </div>
         </div>
 

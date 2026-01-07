@@ -660,6 +660,22 @@ export async function simulateProcessing(analysisId: string) {
         score = Math.floor(Math.random() * 10) + 90; // 90-99
       }
 
+      // Determine overall confidence based on filename flags or random
+      const forceLowConfidence = analysis.filename?.toUpperCase().includes('LOW_CONFIDENCE');
+      const forceHighConfidence = analysis.filename?.toUpperCase().includes('HIGH_CONFIDENCE');
+
+      let overallConfidence: number;
+      if (forceLowConfidence) {
+        overallConfidence = 0.65 + Math.random() * 0.14; // 0.65-0.79 (triggers review)
+      } else if (forceHighConfidence) {
+        overallConfidence = 0.95 + Math.random() * 0.04; // 0.95-0.99 (auto-approval eligible)
+      } else {
+        overallConfidence = 0.85 + Math.random() * 0.14; // 0.85-0.99 (normal range)
+      }
+
+      // Flag for review if confidence < 80%
+      const requiresReview = overallConfidence < 0.80;
+
       // Update the analysis
       await prisma.analysis.update({
         where: { id: analysisId },
@@ -667,7 +683,8 @@ export async function simulateProcessing(analysisId: string) {
           status: 'COMPLETED',
           verdict: finalVerdict,
           score,
-          overallConfidence: 0.85 + Math.random() * 0.14, // 0.85-0.99
+          overallConfidence,
+          requiresReview,
           tokensConsumed,
           processingTimeMs: Math.floor(Math.random() * 5000) + 2000,
           completedAt: new Date(),
