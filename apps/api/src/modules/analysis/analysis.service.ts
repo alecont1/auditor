@@ -198,17 +198,43 @@ function generateExtractionData(
       };
 
     case 'THERMOGRAPHY':
+      // Check for test scenario flags in filename for Thermography
+      const forceMildDeltaT = filename?.toUpperCase().includes('MILD_DELTA'); // 5-10°C (triggers THM-002)
+      const forceCriticalDeltaT = filename?.toUpperCase().includes('CRITICAL_DELTA'); // >15°C (triggers THM-001)
+      const forceMissingReading = filename?.toUpperCase().includes('MISSING_READING'); // Missing readings (triggers THM-003)
+
       // Generate load readings (percentage of rated load)
       const minLoadReading = 50 + Math.floor(Math.random() * 30); // 50-80%
       const maxLoadReading = minLoadReading + 10 + Math.floor(Math.random() * 20); // Higher than min
 
       // Phase temperatures for delta T calculation
-      const phaseATemp = 35 + Math.floor(Math.random() * 25); // 35-60°C
-      const phaseBTemp = 35 + Math.floor(Math.random() * 25);
-      const phaseCTemp = 35 + Math.floor(Math.random() * 25);
-      const maxPhaseTemp = Math.max(phaseATemp, phaseBTemp, phaseCTemp);
-      const minPhaseTemp = Math.min(phaseATemp, phaseBTemp, phaseCTemp);
-      const phaseToPhaseDeltatT = maxPhaseTemp - minPhaseTemp; // Delta T between phases
+      // Determine delta T based on test scenario
+      let phaseToPhaseDeltatT: number;
+      let phaseATemp: number;
+      let phaseBTemp: number;
+      let phaseCTemp: number;
+
+      if (forceCriticalDeltaT) {
+        phaseToPhaseDeltatT = 16 + Math.floor(Math.random() * 10); // 16-25°C (CRITICAL)
+        // Generate consistent phase temps for display
+        phaseATemp = 35 + Math.floor(Math.random() * 10);
+        phaseBTemp = phaseATemp + phaseToPhaseDeltatT;
+        phaseCTemp = phaseATemp + Math.floor(phaseToPhaseDeltatT / 2);
+      } else if (forceMildDeltaT) {
+        phaseToPhaseDeltatT = 5 + Math.floor(Math.random() * 8); // 5-12°C (MINOR)
+        // Generate consistent phase temps for display
+        phaseATemp = 35 + Math.floor(Math.random() * 10);
+        phaseBTemp = phaseATemp + phaseToPhaseDeltatT;
+        phaseCTemp = phaseATemp + Math.floor(phaseToPhaseDeltatT / 2);
+      } else {
+        // Random - generate phase temps and calculate delta
+        phaseATemp = 35 + Math.floor(Math.random() * 25); // 35-60°C
+        phaseBTemp = 35 + Math.floor(Math.random() * 25);
+        phaseCTemp = 35 + Math.floor(Math.random() * 25);
+        const maxPhaseTemp = Math.max(phaseATemp, phaseBTemp, phaseCTemp);
+        const minPhaseTemp = Math.min(phaseATemp, phaseBTemp, phaseCTemp);
+        phaseToPhaseDeltatT = maxPhaseTemp - minPhaseTemp;
+      }
 
       const ambientTemp = 20 + Math.floor(Math.random() * 10); // 20-30°C
       const reflectedTemp = ambientTemp + Math.floor(Math.random() * 5) - 2; // Close to ambient
@@ -216,13 +242,16 @@ function generateExtractionData(
       return {
         ...baseData,
         // Required fields per spec (ai_extraction_thermography)
-        minimumLoadReading: {
-          value: minLoadReading,
-          unit: '%',
-          confidence: 0.85 + Math.random() * 0.14,
-          source: 'report_table',
-          page: 1,
-        },
+        // If forceMissingReading, omit one or both load readings
+        ...(forceMissingReading ? {} : {
+          minimumLoadReading: {
+            value: minLoadReading,
+            unit: '%',
+            confidence: 0.85 + Math.random() * 0.14,
+            source: 'report_table',
+            page: 1,
+          },
+        }),
         maximumLoadReading: {
           value: maxLoadReading,
           unit: '%',
@@ -252,7 +281,7 @@ function generateExtractionData(
           page: 2,
         },
         twoMandatoryReadingsDetected: {
-          value: true, // Both min and max load readings present
+          value: !forceMissingReading, // False if missing reading scenario
           confidence: 0.95 + Math.random() * 0.04,
           source: 'report_analysis',
           page: 1,
