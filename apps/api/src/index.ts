@@ -1,11 +1,12 @@
+import { serve } from '@hono/node-server';
 import { Hono } from 'hono';
 import { cors } from 'hono/cors';
 import { logger } from 'hono/logger';
-import { authRoutes } from './modules/auth/auth.routes';
-import { userRoutes } from './modules/users/users.routes';
-import { companyRoutes } from './modules/companies/companies.routes';
-import { analysisRoutes } from './modules/analysis/analysis.routes';
-import { tokenRoutes } from './modules/tokens/tokens.routes';
+import { authRoutes } from './modules/auth/auth.routes.js';
+import { userRoutes } from './modules/users/users.routes.js';
+import { companyRoutes } from './modules/companies/companies.routes.js';
+import { analysisRoutes } from './modules/analysis/analysis.routes.js';
+import { tokenRoutes } from './modules/tokens/tokens.routes.js';
 
 const app = new Hono();
 
@@ -67,13 +68,16 @@ const port = parseInt(process.env.PORT || '3001');
 console.log(`
   ╔═══════════════════════════════════════════╗
   ║         AuditEng API Server               ║
-  ║─────────────────────────────────────────────║
+  ╠───────────────────────────────────────────╣
   ║  Running on: http://localhost:${port}        ║
   ║  Environment: ${process.env.NODE_ENV || 'development'}             ║
   ╚═══════════════════════════════════════════╝
 `);
 
-export default {
-  port,
+// Start the server
+serve({
   fetch: app.fetch,
-};
+  port,
+});
+
+export default app;

@@ -1,5 +1,7 @@
 import { BrowserRouter, Routes, Route, Navigate } from 'react-router-dom';
 import { AuthProvider } from './lib/auth';
+import { ProtectedRoute } from './components/ProtectedRoute';
+import { MainLayout } from './components/layout/MainLayout';
 import { LoginPage } from './pages/LoginPage';
 import { DashboardPage } from './pages/DashboardPage';
 import { NewAnalysisPage } from './pages/NewAnalysisPage';
@@ -11,6 +13,15 @@ import { CompanyPage } from './pages/settings/CompanyPage';
 import { UsersPage } from './pages/settings/UsersPage';
 import { BillingPage } from './pages/settings/BillingPage';
 
+// Wrapper component for protected routes with layout
+function ProtectedWithLayout({ children, allowedRoles }: { children: React.ReactNode; allowedRoles?: Array<'SUPER_ADMIN' | 'ADMIN' | 'ANALYST'> }) {
+  return (
+    <ProtectedRoute allowedRoles={allowedRoles}>
+      <MainLayout>{children}</MainLayout>
+    </ProtectedRoute>
+  );
+}
+
 function App() {
   return (
     <AuthProvider>
@@ -20,21 +31,61 @@ function App() {
           <Route path="/login" element={<LoginPage />} />
           <Route path="/accept-invitation/:token" element={<div>Accept Invitation Page</div>} />
 
-          {/* Protected routes */}
-          <Route path="/dashboard" element={<DashboardPage />} />
-          <Route path="/analysis/new" element={<NewAnalysisPage />} />
-          <Route path="/analysis/:id" element={<AnalysisDetailPage />} />
-          <Route path="/history" element={<HistoryPage />} />
-          <Route path="/tokens" element={<TokensPage />} />
+          {/* Protected routes - require authentication */}
+          <Route path="/dashboard" element={
+            <ProtectedWithLayout>
+              <DashboardPage />
+            </ProtectedWithLayout>
+          } />
+          <Route path="/analysis/new" element={
+            <ProtectedWithLayout>
+              <NewAnalysisPage />
+            </ProtectedWithLayout>
+          } />
+          <Route path="/analysis/:id" element={
+            <ProtectedWithLayout>
+              <AnalysisDetailPage />
+            </ProtectedWithLayout>
+          } />
+          <Route path="/history" element={
+            <ProtectedWithLayout>
+              <HistoryPage />
+            </ProtectedWithLayout>
+          } />
+          <Route path="/tokens" element={
+            <ProtectedWithLayout>
+              <TokensPage />
+            </ProtectedWithLayout>
+          } />
 
-          {/* Settings routes */}
-          <Route path="/settings/profile" element={<ProfilePage />} />
-          <Route path="/settings/company" element={<CompanyPage />} />
-          <Route path="/settings/users" element={<UsersPage />} />
-          <Route path="/settings/billing" element={<BillingPage />} />
+          {/* Settings routes - require authentication */}
+          <Route path="/settings/profile" element={
+            <ProtectedWithLayout>
+              <ProfilePage />
+            </ProtectedWithLayout>
+          } />
+          <Route path="/settings/company" element={
+            <ProtectedWithLayout allowedRoles={['ADMIN', 'SUPER_ADMIN']}>
+              <CompanyPage />
+            </ProtectedWithLayout>
+          } />
+          <Route path="/settings/users" element={
+            <ProtectedWithLayout allowedRoles={['ADMIN', 'SUPER_ADMIN']}>
+              <UsersPage />
+            </ProtectedWithLayout>
+          } />
+          <Route path="/settings/billing" element={
+            <ProtectedWithLayout allowedRoles={['ADMIN', 'SUPER_ADMIN']}>
+              <BillingPage />
+            </ProtectedWithLayout>
+          } />
 
-          {/* Super Admin routes */}
-          <Route path="/super-admin/*" element={<div>Super Admin Area</div>} />
+          {/* Super Admin routes - require SUPER_ADMIN role */}
+          <Route path="/super-admin/*" element={
+            <ProtectedWithLayout allowedRoles={['SUPER_ADMIN']}>
+              <div>Super Admin Area</div>
+            </ProtectedWithLayout>
+          } />
 
           {/* Default redirect */}
           <Route path="/" element={<Navigate to="/dashboard" replace />} />

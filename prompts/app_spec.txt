@@ -1,0 +1,856 @@
+<project_specification>
+  <project_name>AuditEng</project_name>
+
+  <overview>
+    AuditEng is an automated validation system for electrical commissioning reports targeting mission-critical data centers (Microsoft, Google, AWS). The system analyzes PDF reports using AI (Claude API) to extract structured data, then applies deterministic validation against technical standards (NETA ATS-2021, IEEE, Microsoft CxPOR) to issue automatic verdicts with 98%+ accuracy and less than 2% false positives. The platform operates as a multi-tenant SaaS with token-based billing via Stripe.
+  </overview>
+
+  <technology_stack>
+    <frontend>
+      <framework>React 18 + Vite + TypeScript</framework>
+      <styling>TailwindCSS + shadcn/ui</styling>
+      <state>React Context + localStorage</state>
+    </frontend>
+    <backend>
+      <runtime>Bun</runtime>
+      <framework>Hono + TypeScript 5</framework>
+      <database>PostgreSQL 15 (Railway) + Prisma ORM</database>
+      <cache>Redis (Railway)</cache>
+      <storage>Cloudflare R2 (PDFs)</storage>
+    </backend>
+    <communication>
+      <api>REST API</api>
+    </communication>
+    <external_services>
+      <ai>Anthropic Claude API (Opus for extraction)</ai>
+      <payments>Stripe (token packages)</payments>
+    </external_services>
+    <monorepo>pnpm workspaces</monorepo>
+  </technology_stack>
+
+  <prerequisites>
+    <environment_setup>
+      - Node.js 18+ and Bun runtime
+      - pnpm package manager
+      - PostgreSQL 15 database (Railway or local)
+      - Redis instance (Railway or local)
+      - Cloudflare R2 bucket configured
+      - Anthropic API key
+      - Stripe account with API keys
+    </environment_setup>
+  </prerequisites>
+
+  <feature_count>200</feature_count>
+
+  <security_and_access_control>
+    <user_roles>
+      <role name="SUPER_ADMIN">
+        <description>System owner who provisions new tenants</description>
+        <permissions>
+          - Create and manage companies/tenants
+          - Create first ADMIN user for each company
+          - View all system metrics and usage
+          - Access all tenants (for support purposes)
+        </permissions>
+        <protected_routes>
+          - /super-admin/* (super admin only)
+        </protected_routes>
+      </role>
+      <role name="ADMIN">
+        <description>Company administrator who manages their organization</description>
+        <permissions>
+          - Edit company info (name, logo)
+          - Invite and manage users (ANALYST role)
+          - Remove users from company
+          - Change user roles within company
+          - View token purchase history
+          - Purchase token packages
+          - Configure default validation standard (NETA vs Microsoft)
+          - View all analyses within company
+          - Perform all ANALYST actions
+        </permissions>
+        <protected_routes>
+          - /settings/company (admin only)
+          - /settings/users (admin only)
+          - /settings/billing (admin only)
+        </protected_routes>
+      </role>
+      <role name="ANALYST">
+        <description>Regular user who performs analyses</description>
+        <permissions>
+          - Upload and analyze PDF reports
+          - View own analysis history
+          - Export analysis results (JSON/CSV)
+          - Edit own profile (name, password)
+          - Configure notification preferences
+          - View company token balance (read-only)
+        </permissions>
+        <protected_routes>
+          - /analysis/* (authenticated users)
+          - /history (authenticated users)
+          - /settings/profile (authenticated users)
+        </protected_routes>
+      </role>
+    </user_roles>
+    <authentication>
+      <method>Email/password</method>
+      <session_duration>7 days (JWT)</session_duration>
+      <password_requirements>Minimum 8 characters, at least one number and one letter</password_requirements>
+    </authentication>
+    <sensitive_operations>
+      - Delete company requires password confirmation
+      - Remove user requires confirmation dialog
+      - Large token purchases may require additional verification
+    </sensitive_operations>
+    <multi_tenancy>
+      - Complete data isolation per company/tenant
+      - Users can only see data within their own company
+      - API enforces tenant isolation on all queries
+      - Cannot access another company's data by manipulating IDs
+    </multi_tenancy>
+  </security_and_access_control>
+
+  <core_features>
+    <authentication_and_session>
+      - Email/password login
+      - JWT token with 7-day expiration
+      - Secure logout (clear all tokens)
+      - Password change functionality
+      - Session refresh before expiration
+      - Redirect to login on session expiry
+      - Remember last visited page after login
+    </authentication_and_session>
+
+    <user_management>
+      - SUPER_ADMIN creates companies and first ADMIN
+      - ADMIN invites users via email
+      - Email invitation with secure signup link
+      - ADMIN can change user roles (ADMIN/ANALYST)
+      - ADMIN can remove users from company
+      - Users can edit own profile (name, password)
+      - User list with role badges and status
+    </user_management>
+
+    <company_tenant_management>
+      - Company profile (name, logo)
+      - Logo upload to R2 storage
+      - Default validation standard setting (NETA/Microsoft)
+      - Complete data isolation between tenants
+      - Company-level token balance
+    </company_tenant_management>
+
+    <dashboard>
+      - Token balance display (prominent, top-right)
+      - Quick stats: analyses this month
+      - Quick stats: approval rate percentage
+      - Quick stats: average processing time
+      - 5 most recent analyses with status badges
+      - Large "New Analysis" CTA button
+      - Low token balance warning
+    </dashboard>
+
+    <pdf_upload_and_processing>
+      - Drag-and-drop PDF upload
+      - File validation (PDF only, max 100MB)
+      - Upload progress indicator
+      - Token consumption estimate before processing
+      - Balance verification before starting
+      - PDFs up to 15MB: direct base64 processing
+      - PDFs over 15MB: automatic chunking with compression
+      - 5-minute processing timeout
+      - Cancel analysis in progress
+      - Rate limiting: 10 requests/minute per IP
+    </pdf_upload_and_processing>
+
+    <test_type_selection>
+      - Explicit test type selection (GROUNDING, MEGGER, THERMOGRAPHY)
+      - Test type icons and descriptions
+      - Fallback: filename heuristics for type detection
+    </test_type_selection>
+
+    <ai_extraction_grounding>
+      - Extract ground resistance value and unit
+      - Extract calibration certificate details
+      - Extract certificate expiration date
+      - Detect watermarks on photos
+      - Extract timestamp from watermarks
+      - Extract technician signature presence
+      - Extract instrument serial number (header, photo, or certificate)
+      - Confidence score per extracted field (0.0-1.0)
+      - Source tracking per field (header/photo/certificate/table)
+      - Page number tracking per field
+    </ai_extraction_grounding>
+
+    <ai_extraction_megger>
+      - Extract all 6 mandatory insulation combinations (RxS, RxT, SxT, RxMASS, SxMASS, TxMASS)
+      - Extract insulation resistance values
+      - Extract test voltage
+      - Extract absorption index
+      - Extract instrument calibration status
+      - Confidence score per extracted field
+      - Flag missing combinations
+    </ai_extraction_megger>
+
+    <ai_extraction_thermography>
+      - Extract minimum load reading
+      - Extract maximum load reading
+      - Extract phase-to-phase temperature differential (delta T)
+      - Extract ambient temperature
+      - Extract reflected temperature
+      - Detect two mandatory readings present
+      - Confidence score per extracted field
+    </ai_extraction_thermography>
+
+    <validation_engine_grounding>
+      - Maximum resistance check: 5 ohm (NETA) / 1 ohm (Microsoft critical)
+      - Calibration certificate expiration check ON TEST DATE
+      - Watermark presence check on all photos
+      - Technician signature presence check
+      - Apply most restrictive standard hierarchy (Microsoft > NETA > IEEE)
+      - Generate non-conformity codes (GND-001, GND-002, etc.)
+      - Classify severity (CRITICAL/MAJOR/MINOR)
+      - Calculate weighted score
+      - Determine verdict based on score
+    </validation_engine_grounding>
+
+    <validation_engine_megger>
+      - Minimum IR check: 100M ohm @ 1000V for MV cables
+      - Absorption index check: > 1.4 for approval
+      - All 6 combinations present check
+      - Generate non-conformity codes (MEG-001, MEG-002, etc.)
+      - Classify severity
+      - Calculate weighted score
+      - Determine verdict
+    </validation_engine_megger>
+
+    <validation_engine_thermography>
+      - Phase-to-phase delta T > 3C = mandatory comment (Microsoft)
+      - Phase-to-phase delta T > 15C = CRITICAL (NETA)
+      - Two readings mandatory check
+      - Reflected temperature documented check
+      - Generate non-conformity codes (THM-001, THM-002, etc.)
+      - Classify severity
+      - Calculate weighted score
+      - Determine verdict
+    </validation_engine_thermography>
+
+    <verdict_system>
+      - APPROVED: score > 90
+      - APPROVED_WITH_COMMENTS: score 70-90
+      - REJECTED: score < 70
+      - Automatic REJECTION for expired calibration certificate
+      - Flag for human review if confidence < 80%
+      - Auto-approval allowed if confidence >= 95% AND score > 90
+    </verdict_system>
+
+    <date_format_handling>
+      - Auto-detect date format by company (GENSEP: MM/DD/YY, FNOC: DD/MM/YYYY)
+      - Configurable date format per company
+      - Correct interpretation regardless of format
+    </date_format_handling>
+
+    <analysis_results_display>
+      - Overall verdict with large status badge
+      - Overall confidence score
+      - Processing time display
+      - Tokens consumed display
+      - Collapsible extracted data sections
+      - Per-field confidence indicators
+      - Source and page number per field
+      - Non-conformity list with severity badges
+      - Evidence citation per non-conformity
+      - Suggested corrective action per non-conformity
+    </analysis_results_display>
+
+    <analysis_history>
+      - List of all analyses (company-wide for ADMIN, own for ANALYST)
+      - Filter by test type
+      - Filter by verdict status
+      - Filter by date range
+      - Search by filename or ID
+      - Sort by date, status, or score
+      - Pagination with 20 items per page
+      - Quick status badges in list view
+    </analysis_history>
+
+    <analysis_detail_view>
+      - Full extraction data with confidence scores
+      - Complete non-conformity list
+      - Original PDF preview/download
+      - Re-analyze button
+      - Export options
+    </analysis_detail_view>
+
+    <export_functionality>
+      - JSON export per analysis
+      - CSV export per analysis
+      - Bulk export (multiple analyses)
+      - Export includes all extracted fields
+      - Export includes all non-conformities
+      - Export includes metadata (tokens, time, confidence)
+    </export_functionality>
+
+    <token_system>
+      - Company-level token balance
+      - Pre-analysis consumption estimate (~8000 tokens/MB)
+      - Minimum tokens required: 1000
+      - Atomic debit synchronized with processing
+      - Transaction history with timestamps
+      - Low balance warning (< 10000 tokens)
+      - Balance display in header
+    </token_system>
+
+    <stripe_integration>
+      - 5 predefined token packages:
+        - Starter: 50,000 tokens / $25
+        - Basic: 150,000 tokens / $65
+        - Professional: 400,000 tokens / $150
+        - Business: 1,000,000 tokens / $350
+        - Enterprise: 3,000,000 tokens / $900
+      - Stripe Checkout integration
+      - checkout.session.completed webhook handler
+      - Purchase confirmation and receipt
+      - Purchase history view
+    </stripe_integration>
+
+    <settings_admin>
+      - Edit company name
+      - Upload/change company logo
+      - Manage users list
+      - Invite new user modal
+      - Remove user confirmation
+      - Change user role dropdown
+      - View token purchase history
+      - Configure default validation standard
+    </settings_admin>
+
+    <settings_analyst>
+      - Edit own name
+      - Change password
+      - Email notification preferences (analysis complete)
+      - View own analysis history
+    </settings_analyst>
+
+    <ui_layout>
+      - Fixed sidebar navigation
+      - Sidebar items: Dashboard, New Analysis, History, Tokens, Settings
+      - Header with token balance and user dropdown
+      - Responsive: drawer on mobile, collapsible on tablet
+      - Breadcrumb navigation
+    </ui_layout>
+
+    <status_styling>
+      - APPROVED: bg-emerald-100 text-emerald-800
+      - APPROVED_WITH_COMMENTS: bg-orange-100 text-orange-800
+      - REJECTED: bg-red-100 text-red-800
+      - CRITICAL severity: bg-red-100 text-red-800 border-red-300
+      - MAJOR severity: bg-orange-100 text-orange-800 border-orange-300
+      - MINOR severity: bg-yellow-100 text-yellow-800 border-yellow-300
+    </status_styling>
+
+    <error_handling>
+      - Network failure: user-friendly error message
+      - API timeout: retry option
+      - Insufficient tokens: clear message with purchase link
+      - Invalid PDF: clear format requirements
+      - Processing failure: error details with retry option
+      - Empty states for all list views
+    </error_handling>
+
+    <audit_trail>
+      - Log all analysis actions
+      - Log all user actions (login, logout, settings changes)
+      - Timestamp all actions
+      - Track which user performed each action
+      - Immutable audit records
+    </audit_trail>
+  </core_features>
+
+  <database_schema>
+    <tables>
+      <Company>
+        - id (UUID, primary key)
+        - name (string)
+        - logoUrl (string, nullable)
+        - defaultStandard (enum: NETA, MICROSOFT)
+        - tokenBalance (integer)
+        - createdAt (datetime)
+        - updatedAt (datetime)
+      </Company>
+
+      <User>
+        - id (UUID, primary key)
+        - email (string, unique)
+        - passwordHash (string)
+        - name (string)
+        - role (enum: SUPER_ADMIN, ADMIN, ANALYST)
+        - companyId (UUID, foreign key to Company, nullable for SUPER_ADMIN)
+        - emailNotifications (boolean, default true)
+        - createdAt (datetime)
+        - updatedAt (datetime)
+        - lastLoginAt (datetime, nullable)
+      </User>
+
+      <Invitation>
+        - id (UUID, primary key)
+        - email (string)
+        - role (enum: ADMIN, ANALYST)
+        - companyId (UUID, foreign key to Company)
+        - invitedById (UUID, foreign key to User)
+        - token (string, unique)
+        - expiresAt (datetime)
+        - acceptedAt (datetime, nullable)
+        - createdAt (datetime)
+      </Invitation>
+
+      <Analysis>
+        - id (UUID, primary key)
+        - companyId (UUID, foreign key to Company)
+        - userId (UUID, foreign key to User)
+        - testType (enum: GROUNDING, MEGGER, THERMOGRAPHY)
+        - filename (string)
+        - pdfUrl (string, R2 URL)
+        - pdfSizeBytes (integer)
+        - status (enum: PENDING, PROCESSING, COMPLETED, FAILED)
+        - verdict (enum: APPROVED, APPROVED_WITH_COMMENTS, REJECTED, nullable)
+        - score (integer, nullable)
+        - overallConfidence (float, nullable)
+        - tokensConsumed (integer)
+        - processingTimeMs (integer, nullable)
+        - extractionData (JSON)
+        - nonConformities (JSON)
+        - requiresReview (boolean, default false)
+        - standardUsed (enum: NETA, MICROSOFT)
+        - createdAt (datetime)
+        - completedAt (datetime, nullable)
+      </Analysis>
+
+      <TokenTransaction>
+        - id (UUID, primary key)
+        - companyId (UUID, foreign key to Company)
+        - userId (UUID, foreign key to User)
+        - type (enum: PURCHASE, CONSUMPTION, REFUND)
+        - amount (integer, positive for credit, negative for debit)
+        - balance (integer, balance after transaction)
+        - analysisId (UUID, foreign key to Analysis, nullable)
+        - stripeSessionId (string, nullable)
+        - packageName (string, nullable)
+        - description (string)
+        - createdAt (datetime)
+      </TokenTransaction>
+
+      <AuditLog>
+        - id (UUID, primary key)
+        - companyId (UUID, foreign key to Company, nullable)
+        - userId (UUID, foreign key to User)
+        - action (string)
+        - entityType (string)
+        - entityId (UUID)
+        - details (JSON)
+        - ipAddress (string)
+        - createdAt (datetime)
+      </AuditLog>
+    </tables>
+  </database_schema>
+
+  <api_endpoints_summary>
+    <auth>
+      - POST /api/auth/login
+      - POST /api/auth/logout
+      - POST /api/auth/refresh
+      - POST /api/auth/change-password
+    </auth>
+
+    <users>
+      - GET /api/users (list company users, ADMIN only)
+      - GET /api/users/:id
+      - PUT /api/users/:id
+      - DELETE /api/users/:id (ADMIN only)
+      - POST /api/users/invite (ADMIN only)
+      - POST /api/users/accept-invitation
+      - GET /api/users/me
+    </users>
+
+    <companies>
+      - GET /api/companies/:id
+      - PUT /api/companies/:id (ADMIN only)
+      - POST /api/companies/:id/logo (ADMIN only)
+      - POST /api/companies (SUPER_ADMIN only)
+    </companies>
+
+    <analysis>
+      - POST /api/analysis (upload and start)
+      - GET /api/analysis (list with filters)
+      - GET /api/analysis/:id
+      - GET /api/analysis/:id/export (JSON or CSV)
+      - POST /api/analysis/:id/reanalyze
+      - DELETE /api/analysis/:id
+      - GET /api/analysis/estimate (token estimate)
+    </analysis>
+
+    <tokens>
+      - GET /api/tokens/balance
+      - GET /api/tokens/transactions
+      - POST /api/tokens/checkout (create Stripe session)
+      - POST /api/tokens/webhook (Stripe webhook)
+      - GET /api/tokens/packages
+    </tokens>
+
+    <dashboard>
+      - GET /api/dashboard/stats
+      - GET /api/dashboard/recent
+    </dashboard>
+
+    <super_admin>
+      - GET /api/admin/companies
+      - POST /api/admin/companies
+      - GET /api/admin/metrics
+    </super_admin>
+  </api_endpoints_summary>
+
+  <ui_layout>
+    <main_structure>
+      - Fixed left sidebar (240px on desktop)
+      - Collapsible sidebar on tablet (icon-only mode)
+      - Drawer sidebar on mobile (hamburger menu)
+      - Header bar with token balance, notifications, user menu
+      - Main content area with breadcrumbs
+      - Max content width: 1280px, centered
+    </main_structure>
+
+    <pages>
+      - /login - Login page
+      - /accept-invitation/:token - Accept invitation and set password
+      - /dashboard - Main dashboard with stats and recent analyses
+      - /analysis/new - Upload and start new analysis
+      - /analysis/:id - Analysis detail view
+      - /history - Analysis history with filters
+      - /tokens - Token balance, packages, purchase history
+      - /settings/profile - User profile settings
+      - /settings/company - Company settings (ADMIN)
+      - /settings/users - User management (ADMIN)
+      - /settings/billing - Billing and purchase history (ADMIN)
+      - /super-admin/* - Super admin pages
+    </pages>
+  </ui_layout>
+
+  <design_system>
+    <color_palette>
+      - Primary: Indigo (indigo-600 for actions)
+      - Success: Emerald (emerald-500 for approved)
+      - Warning: Orange (orange-500 for comments)
+      - Error: Red (red-500 for rejected)
+      - Background: Slate-50
+      - Text: Slate-900 (primary), Slate-600 (secondary)
+    </color_palette>
+    <typography>
+      - Font family: Inter (system fallback)
+      - Headings: font-semibold
+      - Body: font-normal
+    </typography>
+    <components>
+      - Use shadcn/ui components throughout
+      - Consistent border-radius (rounded-lg)
+      - Consistent spacing scale (Tailwind defaults)
+    </components>
+  </design_system>
+
+  <file_structure>
+    <backend>
+      apps/api/src/
+      ├── index.ts                          # Entry point + routes
+      ├── modules/
+      │   ├── auth/
+      │   │   ├── auth.routes.ts
+      │   │   ├── auth.service.ts
+      │   │   └── auth.middleware.ts
+      │   ├── users/
+      │   │   ├── users.routes.ts
+      │   │   └── users.service.ts
+      │   ├── companies/
+      │   │   ├── companies.routes.ts
+      │   │   └── companies.service.ts
+      │   ├── analysis/
+      │   │   ├── analysis.routes.ts
+      │   │   └── analysis.service.ts
+      │   ├── tokens/
+      │   │   ├── tokens.routes.ts
+      │   │   └── tokens.service.ts
+      │   └── ai/
+      │       ├── analyzer.ts               # Main orchestrator
+      │       ├── extractors/
+      │       │   ├── base-extractor.ts
+      │       │   ├── grounding-extractor.ts
+      │       │   ├── megger-extractor.ts
+      │       │   └── thermography-extractor.ts
+      │       ├── validators/
+      │       │   ├── base-validator.ts
+      │       │   ├── grounding-validator.ts
+      │       │   ├── megger-validator.ts
+      │       │   └── thermography-validator.ts
+      │       ├── types/
+      │       │   ├── common.ts
+      │       │   ├── grounding.ts
+      │       │   ├── megger.ts
+      │       │   └── thermography.ts
+      │       └── prompts/
+      │           ├── grounding-prompt.ts
+      │           ├── megger-prompt.ts
+      │           └── thermography-prompt.ts
+      ├── lib/
+      │   ├── stripe.ts
+      │   ├── r2.ts
+      │   ├── redis.ts
+      │   └── token-estimator.ts
+      └── prisma/
+          └── schema.prisma
+    </backend>
+
+    <frontend>
+      apps/web/src/
+      ├── main.tsx
+      ├── App.tsx
+      ├── pages/
+      │   ├── LoginPage.tsx
+      │   ├── AcceptInvitationPage.tsx
+      │   ├── DashboardPage.tsx
+      │   ├── NewAnalysisPage.tsx
+      │   ├── AnalysisDetailPage.tsx
+      │   ├── HistoryPage.tsx
+      │   ├── TokensPage.tsx
+      │   └── settings/
+      │       ├── ProfilePage.tsx
+      │       ├── CompanyPage.tsx
+      │       ├── UsersPage.tsx
+      │       └── BillingPage.tsx
+      ├── components/
+      │   ├── layout/
+      │   │   ├── Sidebar.tsx
+      │   │   ├── Header.tsx
+      │   │   ├── MobileDrawer.tsx
+      │   │   └── Breadcrumbs.tsx
+      │   ├── analysis/
+      │   │   ├── UploadDropzone.tsx
+      │   │   ├── TestTypeSelector.tsx
+      │   │   ├── AnalysisResult.tsx
+      │   │   ├── NonConformityList.tsx
+      │   │   └── ExtractionDetails.tsx
+      │   ├── dashboard/
+      │   │   ├── StatsCards.tsx
+      │   │   └── RecentAnalyses.tsx
+      │   └── ui/                           # shadcn/ui components
+      ├── lib/
+      │   ├── api.ts                        # API client
+      │   ├── auth.ts                       # Auth context
+      │   └── utils.ts
+      └── hooks/
+          ├── useAuth.ts
+          └── useAnalysis.ts
+    </frontend>
+  </file_structure>
+
+  <implementation_steps>
+    <step number="1">
+      <title>Foundation Setup (Week 1)</title>
+      <tasks>
+        - Initialize pnpm monorepo with workspaces
+        - Set up apps/api with Hono + Bun
+        - Set up apps/web with Vite + React + TypeScript
+        - Configure Prisma with PostgreSQL
+        - Define base type definitions (TestType, Severity, ValidationStatus)
+        - Create ExtractedField interface with metadata
+        - Set up TailwindCSS and shadcn/ui
+        - Configure environment variables
+      </tasks>
+    </step>
+
+    <step number="2">
+      <title>Authentication and Users (Week 1)</title>
+      <tasks>
+        - Implement JWT authentication
+        - Create login/logout endpoints
+        - Implement role-based middleware
+        - Create user management endpoints
+        - Build login page
+        - Implement invitation flow
+        - Set up auth context in frontend
+      </tasks>
+    </step>
+
+    <step number="3">
+      <title>Multi-Tenancy and Companies (Week 1-2)</title>
+      <tasks>
+        - Implement company CRUD
+        - Add tenant isolation to all queries
+        - Build company settings page
+        - Implement logo upload to R2
+        - Create user management UI for admins
+      </tasks>
+    </step>
+
+    <step number="4">
+      <title>AI Extractors (Week 2)</title>
+      <tasks>
+        - Create abstract BaseExtractor class
+        - Implement GroundingExtractor with specialized prompt
+        - Implement MeggerExtractor with 6-combination validation
+        - Implement ThermographyExtractor with delta-T rules
+        - Integrate Claude API with proper error handling
+        - Implement confidence scoring
+      </tasks>
+    </step>
+
+    <step number="5">
+      <title>Validators (Week 2)</title>
+      <tasks>
+        - Create abstract BaseValidator class
+        - Implement GroundingValidator with NETA/Microsoft criteria
+        - Implement MeggerValidator
+        - Implement ThermographyValidator
+        - Create NC_CODES mapping with severities
+        - Implement weighted score calculation
+        - Implement verdict logic
+      </tasks>
+    </step>
+
+    <step number="6">
+      <title>Analysis Pipeline (Week 2-3)</title>
+      <tasks>
+        - Build main Analyzer orchestrator
+        - Implement PDF upload to R2
+        - Create POST /api/analysis endpoint
+        - Implement token estimation
+        - Add balance verification
+        - Implement atomic token debit
+        - Build upload UI with progress
+        - Create analysis result display
+      </tasks>
+    </step>
+
+    <step number="7">
+      <title>Dashboard and History (Week 3)</title>
+      <tasks>
+        - Build dashboard with stats
+        - Implement recent analyses display
+        - Create history page with filters
+        - Build analysis detail page
+        - Implement JSON/CSV export
+      </tasks>
+    </step>
+
+    <step number="8">
+      <title>Billing and Tokens (Week 3)</title>
+      <tasks>
+        - Set up Stripe integration
+        - Create checkout session endpoint
+        - Implement webhook handler
+        - Build token packages UI
+        - Create purchase history view
+        - Implement balance display in header
+      </tasks>
+    </step>
+
+    <step number="9">
+      <title>Polish and Testing (Week 4)</title>
+      <tasks>
+        - Responsive design refinements
+        - Error handling improvements
+        - Loading states and feedback
+        - Audit logging
+        - Performance optimization
+        - End-to-end testing
+        - Security review
+      </tasks>
+    </step>
+  </implementation_steps>
+
+  <success_criteria>
+    <functionality>
+      - Extraction accuracy > 95% (correct fields vs total)
+      - Validation accuracy > 98% (correct verdicts vs human review)
+      - Analysis time < 60 seconds for PDFs under 10MB
+      - All CRUD operations work for all entities
+      - Complete workflow from upload to verdict
+    </functionality>
+    <user_experience>
+      - Clear status feedback at every step
+      - Intuitive navigation
+      - Responsive on all device sizes
+      - Loading states for all async operations
+      - Helpful error messages
+    </user_experience>
+    <technical_quality>
+      - Zero data leakage between tenants
+      - Confidence score correlates with actual accuracy
+      - Fields with confidence < 80% are flagged for review
+      - All non-conformities have evidence and corrective action
+      - Atomic token transactions (no partial debits)
+    </technical_quality>
+    <design_polish>
+      - Consistent use of design system
+      - Proper color coding for statuses
+      - Professional appearance suitable for enterprise
+      - Accessibility basics (keyboard nav, focus states)
+    </design_polish>
+  </success_criteria>
+
+  <constraints>
+    <technical>
+      - PDFs up to 100MB (automatic chunking above 15MB)
+      - Timeout: 5 minutes per analysis
+      - Rate limiting: 10 requests/minute per IP
+      - Minimum tokens for analysis: 1000
+    </technical>
+    <business_rules>
+      - Certificate expired on test date = Automatic REJECTION
+      - Confidence < 80% = flag for human review
+      - Confidence >= 95% + score > 90 = auto-approval allowed
+      - Primary language: ENGLISH for Microsoft clients
+      - Never reject for missing ONE field - search ALL sources in document
+    </business_rules>
+    <data_sources>
+      - Instrument serial number may appear in: report header, equipment photo, or attached calibration certificate
+      - Date formats vary by company (GENSEP: MM/DD/YY, FNOC: DD/MM/YYYY)
+    </data_sources>
+  </constraints>
+
+  <development_commands>
+    <development>
+      - pnpm dev: Run API (3001) + Web (3000)
+      - pnpm dev:api: Backend only
+      - pnpm dev:web: Frontend only
+    </development>
+    <database>
+      - pnpm db:generate: Generate Prisma Client
+      - pnpm db:migrate: Run migrations
+      - pnpm db:studio: Open Prisma Studio
+    </database>
+    <build_and_deploy>
+      - pnpm build: Production build
+      - railway up: Deploy backend
+      - vercel --prod: Deploy frontend
+    </build_and_deploy>
+    <testing>
+      - pnpm test: All tests
+      - pnpm lint: Code verification
+    </testing>
+  </development_commands>
+
+  <future_extensions>
+    <post_mvp>
+      - New test types: CONTACT_RESISTANCE, VLF_TAN_DELTA, TORQUE
+      - Full RAG: Semantic search over technical standards
+      - Metrics dashboard: Usage and accuracy charts
+      - Batch analysis: Multiple PDFs in queue
+      - Public API: OpenAPI documentation for external integration
+      - Notifications: Email when analysis completes
+      - SSO integration for enterprise clients
+    </post_mvp>
+  </future_extensions>
+
+  <notes>
+    <validation_criteria>
+      Validation thresholds use NETA ATS-2021 defaults. Detailed criteria for each test type (Grounding, Megger, Thermography) will be refined during implementation based on internal documentation. Always apply the most restrictive standard in the hierarchy: Microsoft CxPOR > NETA ATS-2021 > IEEE.
+    </validation_criteria>
+  </notes>
+</project_specification>

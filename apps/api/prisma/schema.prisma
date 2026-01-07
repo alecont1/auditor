@@ -1,62 +1,24 @@
 // Prisma schema for AuditEng
-// PostgreSQL database with multi-tenant architecture
+// SQLite for development, PostgreSQL for production
 
 generator client {
   provider = "prisma-client-js"
 }
 
 datasource db {
-  provider = "postgresql"
+  provider = "sqlite"
   url      = env("DATABASE_URL")
-}
-
-// Enums
-enum UserRole {
-  SUPER_ADMIN
-  ADMIN
-  ANALYST
-}
-
-enum TestType {
-  GROUNDING
-  MEGGER
-  THERMOGRAPHY
-}
-
-enum ValidationStandard {
-  NETA
-  MICROSOFT
-}
-
-enum AnalysisStatus {
-  PENDING
-  PROCESSING
-  COMPLETED
-  FAILED
-  CANCELLED
-}
-
-enum Verdict {
-  APPROVED
-  APPROVED_WITH_COMMENTS
-  REJECTED
-}
-
-enum TransactionType {
-  PURCHASE
-  CONSUMPTION
-  REFUND
 }
 
 // Company/Tenant model
 model Company {
-  id              String             @id @default(uuid())
+  id              String   @id @default(uuid())
   name            String
   logoUrl         String?
-  defaultStandard ValidationStandard @default(NETA)
-  tokenBalance    Int                @default(0)
-  createdAt       DateTime           @default(now())
-  updatedAt       DateTime           @updatedAt
+  defaultStandard String   @default("NETA") // NETA or MICROSOFT
+  tokenBalance    Int      @default(0)
+  createdAt       DateTime @default(now())
+  updatedAt       DateTime @updatedAt
 
   // Relations
   users             User[]
@@ -74,7 +36,7 @@ model User {
   email              String    @unique
   passwordHash       String
   name               String
-  role               UserRole  @default(ANALYST)
+  role               String    @default("ANALYST") // SUPER_ADMIN, ADMIN, ANALYST
   companyId          String?
   emailNotifications Boolean   @default(true)
   createdAt          DateTime  @default(now())
@@ -93,15 +55,15 @@ model User {
 
 // Invitation model for user onboarding
 model Invitation {
-  id         String    @id @default(uuid())
-  email      String
-  role       UserRole  @default(ANALYST)
-  companyId  String
+  id          String    @id @default(uuid())
+  email       String
+  role        String    @default("ANALYST") // ADMIN or ANALYST
+  companyId   String
   invitedById String
-  token      String    @unique
-  expiresAt  DateTime
-  acceptedAt DateTime?
-  createdAt  DateTime  @default(now())
+  token       String    @unique
+  expiresAt   DateTime
+  acceptedAt  DateTime?
+  createdAt   DateTime  @default(now())
 
   // Relations
   company   Company @relation(fields: [companyId], references: [id], onDelete: Cascade)
@@ -112,24 +74,24 @@ model Invitation {
 
 // Analysis model - stores PDF analysis results
 model Analysis {
-  id                String         @id @default(uuid())
+  id                String    @id @default(uuid())
   companyId         String
   userId            String
-  testType          TestType
+  testType          String    // GROUNDING, MEGGER, THERMOGRAPHY
   filename          String
   pdfUrl            String
   pdfSizeBytes      Int
-  status            AnalysisStatus @default(PENDING)
-  verdict           Verdict?
+  status            String    @default("PENDING") // PENDING, PROCESSING, COMPLETED, FAILED, CANCELLED
+  verdict           String?   // APPROVED, APPROVED_WITH_COMMENTS, REJECTED
   score             Int?
   overallConfidence Float?
-  tokensConsumed    Int            @default(0)
+  tokensConsumed    Int       @default(0)
   processingTimeMs  Int?
-  extractionData    Json?
-  nonConformities   Json?
-  requiresReview    Boolean        @default(false)
-  standardUsed      ValidationStandard
-  createdAt         DateTime       @default(now())
+  extractionData    String?   // JSON stored as text
+  nonConformities   String?   // JSON stored as text
+  requiresReview    Boolean   @default(false)
+  standardUsed      String    // NETA or MICROSOFT
+  createdAt         DateTime  @default(now())
   completedAt       DateTime?
 
   // Relations
@@ -144,17 +106,17 @@ model Analysis {
 
 // Token Transaction model
 model TokenTransaction {
-  id              String          @id @default(uuid())
+  id              String   @id @default(uuid())
   companyId       String
   userId          String
-  type            TransactionType
-  amount          Int             // Positive for credit, negative for debit
-  balance         Int             // Balance after transaction
+  type            String   // PURCHASE, CONSUMPTION, REFUND
+  amount          Int      // Positive for credit, negative for debit
+  balance         Int      // Balance after transaction
   analysisId      String?
   stripeSessionId String?
   packageName     String?
   description     String
-  createdAt       DateTime        @default(now())
+  createdAt       DateTime @default(now())
 
   // Relations
   company  Company   @relation(fields: [companyId], references: [id], onDelete: Cascade)
@@ -173,7 +135,7 @@ model AuditLog {
   action     String
   entityType String
   entityId   String
-  details    Json?
+  details    String?  // JSON stored as text
   ipAddress  String?
   createdAt  DateTime @default(now())
 

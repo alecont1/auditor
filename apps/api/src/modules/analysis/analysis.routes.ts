@@ -1,6 +1,10 @@
 import { Hono } from 'hono';
+import { requireAuth } from '../auth/auth.middleware';
 
 export const analysisRoutes = new Hono();
+
+// Apply auth middleware to all analysis routes
+analysisRoutes.use('*', requireAuth);
 
 // POST /api/analysis - Upload and start analysis
 analysisRoutes.post('/', async (c) => {
