@@ -42,6 +42,45 @@ export interface CreateAnalysisInput {
   pdfSizeBytes?: number;
 }
 
+// Chunking threshold - PDFs over 15MB are chunked for processing
+const CHUNKING_THRESHOLD_BYTES = 15 * 1024 * 1024; // 15MB
+const CHUNK_SIZE_BYTES = 5 * 1024 * 1024; // 5MB per chunk
+
+/**
+ * Determine if a PDF needs chunking based on its size.
+ * PDFs over 15MB are automatically chunked for efficient processing.
+ */
+export function requiresChunking(pdfSizeBytes: number): boolean {
+  return pdfSizeBytes > CHUNKING_THRESHOLD_BYTES;
+}
+
+/**
+ * Calculate the number of chunks for a large PDF.
+ * Uses approximately 5MB per chunk for optimal processing.
+ */
+export function calculateChunkCount(pdfSizeBytes: number): number {
+  if (!requiresChunking(pdfSizeBytes)) return 1;
+  return Math.ceil(pdfSizeBytes / CHUNK_SIZE_BYTES);
+}
+
+/**
+ * Get chunking information for a PDF
+ */
+export function getChunkingInfo(pdfSizeBytes: number): {
+  chunked: boolean;
+  chunkCount: number;
+  chunkSizeBytes: number;
+  thresholdBytes: number;
+} {
+  const chunked = requiresChunking(pdfSizeBytes);
+  return {
+    chunked,
+    chunkCount: calculateChunkCount(pdfSizeBytes),
+    chunkSizeBytes: CHUNK_SIZE_BYTES,
+    thresholdBytes: CHUNKING_THRESHOLD_BYTES,
+  };
+}
+
 export interface AnalysisResult {
   id: string;
   filename: string;

@@ -1,5 +1,8 @@
 import { createContext, useContext, useState, useEffect, ReactNode } from 'react';
 
+// API base URL - uses env var in development, relative URL in production
+export const API_BASE = import.meta.env.VITE_API_URL || '';
+
 interface User {
   id: string;
   email: string;
@@ -41,7 +44,7 @@ export function AuthProvider({ children }: { children: ReactNode }) {
 
   const fetchTokenBalance = async (authToken: string) => {
     try {
-      const response = await fetch('/api/tokens/balance', {
+      const response = await fetch(`${API_BASE}/api/tokens/balance`, {
         headers: {
           Authorization: `Bearer ${authToken}`,
         },
@@ -63,7 +66,7 @@ export function AuthProvider({ children }: { children: ReactNode }) {
 
   const fetchUser = async (authToken: string) => {
     try {
-      const response = await fetch('/api/users/me', {
+      const response = await fetch(`${API_BASE}/api/users/me`, {
         headers: {
           Authorization: `Bearer ${authToken}`,
         },
@@ -86,7 +89,7 @@ export function AuthProvider({ children }: { children: ReactNode }) {
   };
 
   const login = async (email: string, password: string) => {
-    const response = await fetch('/api/auth/login', {
+    const response = await fetch(`${API_BASE}/api/auth/login`, {
       method: 'POST',
       headers: {
         'Content-Type': 'application/json',
@@ -113,7 +116,7 @@ export function AuthProvider({ children }: { children: ReactNode }) {
     setTokenBalance(null);
     localStorage.removeItem('auth_token');
     // Optional: Call logout endpoint
-    fetch('/api/auth/logout', {
+    fetch(`${API_BASE}/api/auth/logout`, {
       method: 'POST',
       headers: {
         Authorization: `Bearer ${token}`,

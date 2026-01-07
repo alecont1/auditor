@@ -14,7 +14,15 @@ const app = new Hono();
 // Middleware
 app.use('*', logger());
 app.use('*', cors({
-  origin: process.env.WEB_URL || 'http://localhost:3000',
+  origin: (origin) => {
+    // Allow all localhost origins in development
+    if (!origin || origin.startsWith('http://localhost:') || origin.startsWith('http://127.0.0.1:')) {
+      return origin || '*';
+    }
+    // In production, use WEB_URL
+    const allowedOrigin = process.env.WEB_URL || 'http://localhost:3000';
+    return origin === allowedOrigin ? origin : null;
+  },
   credentials: true,
 }));
 

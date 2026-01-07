@@ -1,6 +1,6 @@
 import { useEffect, useState } from 'react';
 import { Link } from 'react-router-dom';
-import { useAuth } from '../lib/auth';
+import { useAuth, API_BASE } from '../lib/auth';
 import { formatDate } from '../lib/utils';
 
 interface DashboardStats {
@@ -32,10 +32,10 @@ export function DashboardPage() {
     setError(null);
     try {
       const [statsResponse, recentResponse] = await Promise.all([
-        fetch('/api/analysis/stats', {
+        fetch(`${API_BASE}/api/analysis/stats`, {
           headers: { Authorization: `Bearer ${token}` },
         }),
-        fetch('/api/analysis/recent', {
+        fetch(`${API_BASE}/api/analysis/recent`, {
           headers: { Authorization: `Bearer ${token}` },
         }),
       ]);

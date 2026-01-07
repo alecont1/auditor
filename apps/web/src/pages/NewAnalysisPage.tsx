@@ -1,6 +1,6 @@
 import { useState, useRef, useCallback } from 'react';
 import { useNavigate, Link } from 'react-router-dom';
-import { useAuth } from '../lib/auth';
+import { useAuth, API_BASE } from '../lib/auth';
 
 type TestType = 'GROUNDING' | 'MEGGER' | 'THERMOGRAPHY';
 
@@ -124,7 +124,7 @@ export function NewAnalysisPage() {
       // Start progress simulation in parallel with the API call
       const progressPromise = simulateProgress();
 
-      const response = await fetch('/api/analysis', {
+      const response = await fetch(`${API_BASE}/api/analysis`, {
         method: 'POST',
         headers: {
           'Authorization': `Bearer ${token}`,

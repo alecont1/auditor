@@ -2,7 +2,7 @@ import { Hono } from 'hono';
 import { z } from 'zod';
 import { requireAuth } from '../auth/auth.middleware';
 import { prisma } from '../../lib/prisma';
-import { createAnalysis, simulateProcessing } from './analysis.service';
+import { createAnalysis, simulateProcessing, getChunkingInfo } from './analysis.service';
 import { getTokenBalance } from '../tokens/tokens.service';
 import { analysisRateLimiter } from '../../lib/rate-limiter';
 import { logAudit, getClientIp } from '../../lib/audit-log';
@@ -80,10 +80,19 @@ analysisRoutes.post('/', analysisRateLimiter, async (c) => {
       ipAddress,
     });
 
+    // Get chunking info for the PDF
+    const chunkingInfo = getChunkingInfo(pdfSizeBytes);
+
     return c.json({
       success: true,
       message: 'Analysis created successfully',
       analysis,
+      processing: {
+        chunked: chunkingInfo.chunked,
+        chunkCount: chunkingInfo.chunkCount,
+        fileSizeBytes: pdfSizeBytes,
+        thresholdBytes: chunkingInfo.thresholdBytes,
+      },
     }, 201);
   } catch (error) {
     console.error('Create analysis error:', error);
