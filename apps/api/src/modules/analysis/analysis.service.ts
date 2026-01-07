@@ -315,18 +315,39 @@ function generateExtractionData(
 
     case 'GROUNDING':
     default:
-      // Generate ground resistance value
-      // 80% chance: passes (< 5 ohm), 20% chance: fails (> 5 ohm)
-      const resistancePasses = Math.random() < 0.8;
-      const groundResistance = resistancePasses
-        ? 0.5 + Math.random() * 3.5 // 0.5-4.0 ohm (passes)
-        : 5.5 + Math.random() * 4.5; // 5.5-10.0 ohm (fails)
+      // Check for test scenario flags in filename
+      const forceCleanGround = filename?.toUpperCase().includes('CLEAN');
+      const forceMajorGround = filename?.toUpperCase().includes('MAJOR_ISSUE');
+      const forceCriticalGround = filename?.toUpperCase().includes('HIGH_RESISTANCE');
 
-      // Watermark detection - 85% chance present
-      const hasWatermark = Math.random() < 0.85;
+      // Generate ground resistance value based on scenario
+      let groundResistance: number;
+      if (forceCriticalGround) {
+        // Force high resistance for REJECTED verdict
+        groundResistance = 6 + Math.random() * 4; // 6-10 ohm (fails)
+      } else if (forceCleanGround || forceMajorGround) {
+        // Force low resistance for APPROVED scenarios
+        groundResistance = 0.5 + Math.random() * 3; // 0.5-3.5 ohm (passes)
+      } else {
+        // 80% chance: passes (< 5 ohm), 20% chance: fails (> 5 ohm)
+        const resistancePasses = Math.random() < 0.8;
+        groundResistance = resistancePasses
+          ? 0.5 + Math.random() * 3.5 // 0.5-4.0 ohm (passes)
+          : 5.5 + Math.random() * 4.5; // 5.5-10.0 ohm (fails)
+      }
 
-      // Technician signature - 90% chance present
-      const hasTechnicianSignature = Math.random() < 0.9;
+      // Watermark detection based on scenario
+      let hasWatermark: boolean;
+      if (forceCleanGround) {
+        hasWatermark = true; // Force watermark present for APPROVED
+      } else if (forceMajorGround) {
+        hasWatermark = false; // Force watermark missing for APPROVED_WITH_COMMENTS
+      } else {
+        hasWatermark = Math.random() < 0.85; // 85% chance present
+      }
+
+      // Technician signature - force present for clean, otherwise 90% chance
+      const hasTechnicianSignature = forceCleanGround ? true : Math.random() < 0.9;
 
       return {
         ...baseData,
