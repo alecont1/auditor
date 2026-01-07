@@ -1,17 +1,37 @@
 import { Hono } from 'hono';
+import { requireAuth } from '../auth/auth.middleware';
+import { getTokenBalance, getTransactionHistory } from './tokens.service';
 
 export const tokenRoutes = new Hono();
 
+// Apply auth middleware to all token routes
+tokenRoutes.use('*', requireAuth);
+
 // GET /api/tokens/balance - Get token balance
 tokenRoutes.get('/balance', async (c) => {
-  // TODO: Implement get balance
-  return c.json({ message: 'Token balance endpoint' });
+  try {
+    const user = c.get('user');
+    const balance = await getTokenBalance(user.companyId);
+    return c.json({ balance });
+  } catch (error) {
+    console.error('Get balance error:', error);
+    return c.json({ error: 'Failed to get balance' }, 500);
+  }
 });
 
 // GET /api/tokens/transactions - Get transaction history
 tokenRoutes.get('/transactions', async (c) => {
-  // TODO: Implement transaction list
-  return c.json({ message: 'Token transactions endpoint' });
+  try {
+    const user = c.get('user');
+    const limit = parseInt(c.req.query('limit') || '50');
+    const offset = parseInt(c.req.query('offset') || '0');
+
+    const { transactions, total } = await getTransactionHistory(user.companyId, { limit, offset });
+    return c.json({ transactions, total });
+  } catch (error) {
+    console.error('Get transactions error:', error);
+    return c.json({ error: 'Failed to get transactions' }, 500);
+  }
 });
 
 // GET /api/tokens/packages - Get available packages

@@ -207,14 +207,97 @@ analysisRoutes.get('/:id/export', async (c) => {
       id,
       companyId: user.companyId,
     },
+    include: {
+      user: {
+        select: {
+          name: true,
+          email: true,
+        },
+      },
+      company: {
+        select: {
+          name: true,
+        },
+      },
+    },
   });
 
   if (!analysis) {
     return c.json({ error: 'Not Found', message: 'Analysis not found' }, 404);
   }
 
-  // TODO: Implement full export logic
-  return c.json({ message: `Export analysis ${id} as ${format}`, analysis });
+  // Parse extraction data if it exists
+  const extractionData = analysis.extractionData ? JSON.parse(analysis.extractionData) : null;
+  const nonConformities = analysis.nonConformities ? JSON.parse(analysis.nonConformities) : [];
+
+  if (format === 'csv') {
+    // Create CSV content
+    const csvRows = [
+      ['Field', 'Value'],
+      ['Analysis ID', analysis.id],
+      ['Filename', analysis.filename],
+      ['Test Type', analysis.testType],
+      ['Status', analysis.status],
+      ['Verdict', analysis.verdict || ''],
+      ['Score', analysis.score?.toString() || ''],
+      ['Confidence', analysis.overallConfidence?.toString() || ''],
+      ['Standard Used', analysis.standardUsed],
+      ['Tokens Consumed', analysis.tokensConsumed.toString()],
+      ['Processing Time (ms)', analysis.processingTimeMs?.toString() || ''],
+      ['Created At', analysis.createdAt.toISOString()],
+      ['Completed At', analysis.completedAt?.toISOString() || ''],
+      ['Created By', analysis.user.name || analysis.user.email],
+      ['Company', analysis.company.name],
+    ];
+
+    // Add extraction data readings if available
+    if (extractionData?.readings) {
+      csvRows.push(['', '']);
+      csvRows.push(['Readings', '']);
+      extractionData.readings.forEach((reading: any, index: number) => {
+        csvRows.push([`Reading ${index + 1}`, `${reading.point}: ${reading.value} ${reading.unit}`]);
+      });
+    }
+
+    const csvContent = csvRows.map(row => row.map(cell => `"${cell}"`).join(',')).join('\n');
+
+    c.header('Content-Type', 'text/csv');
+    c.header('Content-Disposition', `attachment; filename="${analysis.filename.replace('.pdf', '')}_export.csv"`);
+    return c.body(csvContent);
+  }
+
+  // Default: JSON format
+  const exportData = {
+    analysis: {
+      id: analysis.id,
+      filename: analysis.filename,
+      testType: analysis.testType,
+      status: analysis.status,
+      verdict: analysis.verdict,
+      score: analysis.score,
+      overallConfidence: analysis.overallConfidence,
+      standardUsed: analysis.standardUsed,
+      tokensConsumed: analysis.tokensConsumed,
+      processingTimeMs: analysis.processingTimeMs,
+      createdAt: analysis.createdAt,
+      completedAt: analysis.completedAt,
+      requiresReview: analysis.requiresReview,
+    },
+    extractionData,
+    nonConformities,
+    metadata: {
+      createdBy: {
+        name: analysis.user.name,
+        email: analysis.user.email,
+      },
+      company: analysis.company.name,
+      exportedAt: new Date().toISOString(),
+    },
+  };
+
+  c.header('Content-Type', 'application/json');
+  c.header('Content-Disposition', `attachment; filename="${analysis.filename.replace('.pdf', '')}_export.json"`);
+  return c.json(exportData);
 });
 
 // POST /api/analysis/:id/reanalyze - Re-analyze (tenant-isolated)

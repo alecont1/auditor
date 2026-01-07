@@ -1,4 +1,5 @@
 import { prisma } from '../../lib/prisma';
+import { consumeTokens } from '../tokens/tokens.service';
 
 export interface CreateAnalysisInput {
   filename: string;
@@ -62,6 +63,20 @@ async function simulateProcessing(analysisId: string) {
   // Wait 2 seconds then mark as completed
   setTimeout(async () => {
     try {
+      // Get the analysis to find userId and companyId
+      const analysis = await prisma.analysis.findUnique({
+        where: { id: analysisId },
+        select: { userId: true, companyId: true, filename: true },
+      });
+
+      if (!analysis) {
+        console.error('Analysis not found:', analysisId);
+        return;
+      }
+
+      const tokensConsumed = Math.floor(Math.random() * 5000) + 1000;
+
+      // Update the analysis
       await prisma.analysis.update({
         where: { id: analysisId },
         data: {
@@ -69,7 +84,7 @@ async function simulateProcessing(analysisId: string) {
           verdict: 'APPROVED',
           score: Math.floor(Math.random() * 20) + 80, // Random score 80-100
           overallConfidence: 0.85 + Math.random() * 0.14, // 0.85-0.99
-          tokensConsumed: Math.floor(Math.random() * 5000) + 1000,
+          tokensConsumed,
           processingTimeMs: Math.floor(Math.random() * 5000) + 2000,
           completedAt: new Date(),
           extractionData: JSON.stringify({
@@ -84,6 +99,21 @@ async function simulateProcessing(analysisId: string) {
           nonConformities: JSON.stringify([]),
         },
       });
+
+      // Consume tokens
+      try {
+        await consumeTokens(
+          analysis.companyId,
+          analysis.userId,
+          tokensConsumed,
+          analysisId,
+          `Analysis: ${analysis.filename}`
+        );
+      } catch (tokenError) {
+        console.error('Failed to consume tokens:', tokenError);
+        // Analysis still completed, but tokens weren't consumed
+        // In production, this would need better handling
+      }
     } catch (error) {
       console.error('Error updating analysis status:', error);
       // Mark as failed if update fails
