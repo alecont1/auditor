@@ -3,7 +3,7 @@
  * All significant user actions should be logged for compliance and security
  */
 
-import { prisma } from './prisma';
+import { prisma, Prisma } from './prisma';
 import type { Context } from 'hono';
 
 // Audit action types
@@ -58,7 +58,7 @@ export async function logAudit(input: AuditLogInput): Promise<void> {
         action: input.action,
         entityType: input.entityType,
         entityId: input.entityId,
-        details: input.details ? JSON.stringify(input.details) : null,
+        details: input.details as Prisma.InputJsonValue || undefined,
         ipAddress: input.ipAddress || null,
       },
     });

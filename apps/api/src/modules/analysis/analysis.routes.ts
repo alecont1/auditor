@@ -1,7 +1,8 @@
 import { Hono } from 'hono';
+import { Context } from 'hono';
 import { z } from 'zod';
 import { requireAuth } from '../auth/auth.middleware';
-import { prisma } from '../../lib/prisma';
+import { prisma, Prisma } from '../../lib/prisma';
 import { createAnalysis, simulateProcessing, getChunkingInfo } from './analysis.service';
 import { getTokenBalance } from '../tokens/tokens.service';
 import { analysisRateLimiter } from '../../lib/rate-limiter';
@@ -9,6 +10,15 @@ import { logAudit, getClientIp } from '../../lib/audit-log';
 
 // Alias for clarity in reanalyze endpoint
 const simulateReprocessing = simulateProcessing;
+
+// Type guard to ensure user has company (for non-Super Admin operations)
+function requireCompanyId(c: Context): string | null {
+  const user = c.get('user');
+  if (!user.companyId) {
+    return null;
+  }
+  return user.companyId;
+}
 
 export const analysisRoutes = new Hono();
 
@@ -40,6 +50,12 @@ const createAnalysisSchema = z.object({
 analysisRoutes.post('/', analysisRateLimiter, async (c) => {
   try {
     const user = c.get('user');
+
+    // Ensure user has a company (Super Admin without company cannot create analyses)
+    if (!user.companyId) {
+      return c.json({ error: 'Forbidden', message: 'Company association required for this operation' }, 403);
+    }
+
     const body = await c.req.json();
 
     const validation = createAnalysisSchema.safeParse(body);
@@ -106,10 +122,15 @@ analysisRoutes.post('/', analysisRateLimiter, async (c) => {
 // GET /api/analysis/stats - Get dashboard statistics (tenant-isolated + user-isolated for ANALYST)
 analysisRoutes.get('/stats', async (c) => {
   const user = c.get('user');
+  const companyId = requireCompanyId(c);
+
+  if (!companyId) {
+    return c.json({ error: 'Forbidden', message: 'Company association required' }, 403);
+  }
 
   // Build where clause: ADMIN sees all company analyses, ANALYST sees only their own
   const baseWhere: { companyId: string; userId?: string } = {
-    companyId: user.companyId,
+    companyId,
   };
 
   if (user.role === 'ANALYST') {
@@ -158,7 +179,7 @@ analysisRoutes.get('/stats', async (c) => {
 
   // Get company token balance
   const company = await prisma.company.findUnique({
-    where: { id: user.companyId },
+    where: { id: companyId },
     select: { tokenBalance: true },
   });
 
@@ -175,10 +196,15 @@ analysisRoutes.get('/stats', async (c) => {
 // GET /api/analysis/recent - Get recent analyses for dashboard (tenant-isolated + user-isolated for ANALYST)
 analysisRoutes.get('/recent', async (c) => {
   const user = c.get('user');
+  const companyId = requireCompanyId(c);
+
+  if (!companyId) {
+    return c.json({ error: 'Forbidden', message: 'Company association required' }, 403);
+  }
 
   // Build where clause: ADMIN sees all company analyses, ANALYST sees only their own
   const where: { companyId: string; userId?: string } = {
-    companyId: user.companyId,
+    companyId,
   };
 
   if (user.role === 'ANALYST') {
@@ -206,10 +232,15 @@ analysisRoutes.get('/recent', async (c) => {
 // GET /api/analysis - List analyses with filters (tenant-isolated + user-isolated for ANALYST)
 analysisRoutes.get('/', async (c) => {
   const user = c.get('user');
+  const companyId = requireCompanyId(c);
+
+  if (!companyId) {
+    return c.json({ error: 'Forbidden', message: 'Company association required' }, 403);
+  }
 
   // Build where clause: ADMIN sees all company analyses, ANALYST sees only their own
   const where: { companyId: string; userId?: string } = {
-    companyId: user.companyId,
+    companyId,
   };
 
   // ANALYST users can only see their own analyses
@@ -245,13 +276,17 @@ analysisRoutes.get('/estimate', async (c) => {
 // GET /api/analysis/:id - Get analysis details (tenant-isolated)
 analysisRoutes.get('/:id', async (c) => {
   const id = c.req.param('id');
-  const user = c.get('user');
+  const companyId = requireCompanyId(c);
+
+  if (!companyId) {
+    return c.json({ error: 'Forbidden', message: 'Company association required' }, 403);
+  }
 
   // Find analysis and check it belongs to user's company
   const analysis = await prisma.analysis.findFirst({
     where: {
       id,
-      companyId: user.companyId, // CRITICAL: Tenant isolation
+      companyId, // CRITICAL: Tenant isolation
     },
     include: {
       user: {
@@ -277,13 +312,17 @@ analysisRoutes.get('/:id', async (c) => {
 analysisRoutes.get('/:id/export', async (c) => {
   const id = c.req.param('id');
   const format = c.req.query('format') || 'json';
-  const user = c.get('user');
+  const companyId = requireCompanyId(c);
+
+  if (!companyId) {
+    return c.json({ error: 'Forbidden', message: 'Company association required' }, 403);
+  }
 
   // Check tenant isolation
-  const analysis = await prisma.analysis.findFirst({
+  const analysisWithRelations = await prisma.analysis.findFirst({
     where: {
       id,
-      companyId: user.companyId,
+      companyId,
     },
     include: {
       user: {
@@ -300,32 +339,32 @@ analysisRoutes.get('/:id/export', async (c) => {
     },
   });
 
-  if (!analysis) {
+  if (!analysisWithRelations) {
     return c.json({ error: 'Not Found', message: 'Analysis not found' }, 404);
   }
 
-  // Parse extraction data if it exists
-  const extractionData = analysis.extractionData ? JSON.parse(analysis.extractionData) : null;
-  const nonConformities = analysis.nonConformities ? JSON.parse(analysis.nonConformities) : [];
+  // Extraction data is now native JSON from PostgreSQL
+  const extractionData = analysisWithRelations.extractionData as Record<string, any> | null;
+  const nonConformities = analysisWithRelations.nonConformities as any[] || [];
 
   if (format === 'csv') {
     // Create CSV content
     const csvRows = [
       ['Field', 'Value'],
-      ['Analysis ID', analysis.id],
-      ['Filename', analysis.filename],
-      ['Test Type', analysis.testType],
-      ['Status', analysis.status],
-      ['Verdict', analysis.verdict || ''],
-      ['Score', analysis.score?.toString() || ''],
-      ['Confidence', analysis.overallConfidence?.toString() || ''],
-      ['Standard Used', analysis.standardUsed],
-      ['Tokens Consumed', analysis.tokensConsumed.toString()],
-      ['Processing Time (ms)', analysis.processingTimeMs?.toString() || ''],
-      ['Created At', analysis.createdAt.toISOString()],
-      ['Completed At', analysis.completedAt?.toISOString() || ''],
-      ['Created By', analysis.user.name || analysis.user.email],
-      ['Company', analysis.company.name],
+      ['Analysis ID', analysisWithRelations.id],
+      ['Filename', analysisWithRelations.filename],
+      ['Test Type', analysisWithRelations.testType],
+      ['Status', analysisWithRelations.status],
+      ['Verdict', analysisWithRelations.verdict || ''],
+      ['Score', analysisWithRelations.score?.toString() || ''],
+      ['Confidence', analysisWithRelations.overallConfidence?.toString() || ''],
+      ['Standard Used', analysisWithRelations.standardUsed],
+      ['Tokens Consumed', analysisWithRelations.tokensConsumed.toString()],
+      ['Processing Time (ms)', analysisWithRelations.processingTimeMs?.toString() || ''],
+      ['Created At', analysisWithRelations.createdAt.toISOString()],
+      ['Completed At', analysisWithRelations.completedAt?.toISOString() || ''],
+      ['Created By', analysisWithRelations.user.name || analysisWithRelations.user.email],
+      ['Company', analysisWithRelations.company.name],
     ];
 
     // Add extraction data readings if available
@@ -340,54 +379,58 @@ analysisRoutes.get('/:id/export', async (c) => {
     const csvContent = csvRows.map(row => row.map(cell => `"${cell}"`).join(',')).join('\n');
 
     c.header('Content-Type', 'text/csv');
-    c.header('Content-Disposition', `attachment; filename="${analysis.filename.replace('.pdf', '')}_export.csv"`);
+    c.header('Content-Disposition', `attachment; filename="${analysisWithRelations.filename.replace('.pdf', '')}_export.csv"`);
     return c.body(csvContent);
   }
 
   // Default: JSON format
   const exportData = {
     analysis: {
-      id: analysis.id,
-      filename: analysis.filename,
-      testType: analysis.testType,
-      status: analysis.status,
-      verdict: analysis.verdict,
-      score: analysis.score,
-      overallConfidence: analysis.overallConfidence,
-      standardUsed: analysis.standardUsed,
-      tokensConsumed: analysis.tokensConsumed,
-      processingTimeMs: analysis.processingTimeMs,
-      createdAt: analysis.createdAt,
-      completedAt: analysis.completedAt,
-      requiresReview: analysis.requiresReview,
+      id: analysisWithRelations.id,
+      filename: analysisWithRelations.filename,
+      testType: analysisWithRelations.testType,
+      status: analysisWithRelations.status,
+      verdict: analysisWithRelations.verdict,
+      score: analysisWithRelations.score,
+      overallConfidence: analysisWithRelations.overallConfidence,
+      standardUsed: analysisWithRelations.standardUsed,
+      tokensConsumed: analysisWithRelations.tokensConsumed,
+      processingTimeMs: analysisWithRelations.processingTimeMs,
+      createdAt: analysisWithRelations.createdAt,
+      completedAt: analysisWithRelations.completedAt,
+      requiresReview: analysisWithRelations.requiresReview,
     },
     extractionData,
     nonConformities,
     metadata: {
       createdBy: {
-        name: analysis.user.name,
-        email: analysis.user.email,
+        name: analysisWithRelations.user.name,
+        email: analysisWithRelations.user.email,
       },
-      company: analysis.company.name,
+      company: analysisWithRelations.company.name,
       exportedAt: new Date().toISOString(),
     },
   };
 
   c.header('Content-Type', 'application/json');
-  c.header('Content-Disposition', `attachment; filename="${analysis.filename.replace('.pdf', '')}_export.json"`);
+  c.header('Content-Disposition', `attachment; filename="${analysisWithRelations.filename.replace('.pdf', '')}_export.json"`);
   return c.json(exportData);
 });
 
 // POST /api/analysis/:id/reanalyze - Re-analyze (tenant-isolated)
 analysisRoutes.post('/:id/reanalyze', async (c) => {
   const id = c.req.param('id');
-  const user = c.get('user');
+  const companyId = requireCompanyId(c);
+
+  if (!companyId) {
+    return c.json({ error: 'Forbidden', message: 'Company association required' }, 403);
+  }
 
   // Check tenant isolation
   const analysis = await prisma.analysis.findFirst({
     where: {
       id,
-      companyId: user.companyId,
+      companyId,
     },
   });
 
@@ -400,7 +443,7 @@ analysisRoutes.post('/:id/reanalyze', async (c) => {
 
   // Check company has enough tokens
   const company = await prisma.company.findUnique({
-    where: { id: user.companyId },
+    where: { id: companyId },
     select: { tokenBalance: true },
   });
 
@@ -422,8 +465,8 @@ analysisRoutes.post('/:id/reanalyze', async (c) => {
       tokensConsumed: 0,
       processingTimeMs: null,
       completedAt: null,
-      extractionData: null,
-      nonConformities: null,
+      extractionData: Prisma.DbNull,
+      nonConformities: Prisma.DbNull,
     },
   });
 
@@ -444,13 +487,17 @@ analysisRoutes.post('/:id/reanalyze', async (c) => {
 // POST /api/analysis/:id/cancel - Cancel analysis in progress (tenant-isolated)
 analysisRoutes.post('/:id/cancel', async (c) => {
   const id = c.req.param('id');
-  const user = c.get('user');
+  const companyId = requireCompanyId(c);
+
+  if (!companyId) {
+    return c.json({ error: 'Forbidden', message: 'Company association required' }, 403);
+  }
 
   // Check tenant isolation
   const analysis = await prisma.analysis.findFirst({
     where: {
       id,
-      companyId: user.companyId,
+      companyId,
     },
   });
 
@@ -488,7 +535,11 @@ analysisRoutes.post('/:id/cancel', async (c) => {
 
 // POST /api/analysis/bulk-export - Export multiple analyses (tenant-isolated)
 analysisRoutes.post('/bulk-export', async (c) => {
-  const user = c.get('user');
+  const companyId = requireCompanyId(c);
+
+  if (!companyId) {
+    return c.json({ error: 'Forbidden', message: 'Company association required' }, 403);
+  }
 
   try {
     const body = await c.req.json();
@@ -499,10 +550,10 @@ analysisRoutes.post('/bulk-export', async (c) => {
     }
 
     // Fetch all analyses that belong to user's company
-    const analyses = await prisma.analysis.findMany({
+    const analysesWithRelations = await prisma.analysis.findMany({
       where: {
         id: { in: ids },
-        companyId: user.companyId, // CRITICAL: Tenant isolation
+        companyId, // CRITICAL: Tenant isolation
       },
       include: {
         user: {
@@ -519,7 +570,7 @@ analysisRoutes.post('/bulk-export', async (c) => {
       },
     });
 
-    if (analyses.length === 0) {
+    if (analysesWithRelations.length === 0) {
       return c.json({ error: 'Not Found', message: 'No analyses found' }, 404);
     }
 
@@ -529,7 +580,7 @@ analysisRoutes.post('/bulk-export', async (c) => {
         ['ID', 'Filename', 'Test Type', 'Status', 'Verdict', 'Score', 'Confidence', 'Standard', 'Tokens', 'Processing Time (ms)', 'Created At', 'Completed At', 'Created By', 'Company'],
       ];
 
-      analyses.forEach((analysis) => {
+      analysesWithRelations.forEach((analysis) => {
         csvRows.push([
           analysis.id,
           analysis.filename,
@@ -558,8 +609,8 @@ analysisRoutes.post('/bulk-export', async (c) => {
     // Default: JSON format
     const exportData = {
       exportedAt: new Date().toISOString(),
-      count: analyses.length,
-      analyses: analyses.map((analysis) => ({
+      count: analysesWithRelations.length,
+      analyses: analysesWithRelations.map((analysis) => ({
         id: analysis.id,
         filename: analysis.filename,
         testType: analysis.testType,
@@ -572,8 +623,8 @@ analysisRoutes.post('/bulk-export', async (c) => {
         processingTimeMs: analysis.processingTimeMs,
         createdAt: analysis.createdAt,
         completedAt: analysis.completedAt,
-        extractionData: analysis.extractionData ? JSON.parse(analysis.extractionData) : null,
-        nonConformities: analysis.nonConformities ? JSON.parse(analysis.nonConformities) : [],
+        extractionData: analysis.extractionData || null,
+        nonConformities: analysis.nonConformities || [],
         createdBy: {
           name: analysis.user.name,
           email: analysis.user.email,
@@ -594,13 +645,17 @@ analysisRoutes.post('/bulk-export', async (c) => {
 // DELETE /api/analysis/:id - Delete analysis (tenant-isolated)
 analysisRoutes.delete('/:id', async (c) => {
   const id = c.req.param('id');
-  const user = c.get('user');
+  const companyId = requireCompanyId(c);
+
+  if (!companyId) {
+    return c.json({ error: 'Forbidden', message: 'Company association required' }, 403);
+  }
 
   // Check tenant isolation
   const analysis = await prisma.analysis.findFirst({
     where: {
       id,
-      companyId: user.companyId,
+      companyId,
     },
   });
 

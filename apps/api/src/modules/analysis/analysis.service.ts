@@ -1,5 +1,6 @@
 import { prisma } from '../../lib/prisma';
 import { consumeTokens } from '../tokens/tokens.service';
+import { validarCruzado, converterParaDadosExtraidos } from '../ai/validators/cross-validator';
 
 /**
  * Compare two dates in a timezone-neutral way (date-only comparison).
@@ -758,6 +759,24 @@ export async function simulateProcessing(analysisId: string) {
         }
       }
 
+      // ===== VALIDAÇÃO CRUZADA (detecta falsos positivos) =====
+      const dadosParaValidacao = converterParaDadosExtraidos(extractionData, testDate);
+      const inconsistenciasCruzadas = validarCruzado(dadosParaValidacao);
+
+      // Converte inconsistências cruzadas para o formato de nonConformities
+      for (const inc of inconsistenciasCruzadas) {
+        nonConformities.push({
+          code: inc.codigo,
+          severity: inc.tipo,
+          description: inc.mensagem,
+          evidence: `${inc.campo}: esperado [${inc.esperado}], encontrado [${inc.encontrado}]`,
+          correctiveAction: inc.tipo === 'CRITICAL'
+            ? 'Corrigir inconsistência antes de reenviar'
+            : 'Verificar e documentar a divergência',
+        });
+      }
+      // ===== FIM VALIDAÇÃO CRUZADA =====
+
       // Determine verdict based on validation results
       // Automatic REJECTION for expired calibration or any CRITICAL non-conformity
       let finalVerdict: 'APPROVED' | 'APPROVED_WITH_COMMENTS' | 'REJECTED';
@@ -805,8 +824,8 @@ export async function simulateProcessing(analysisId: string) {
           tokensConsumed,
           processingTimeMs: Math.floor(Math.random() * 5000) + 2000,
           completedAt: new Date(),
-          extractionData: JSON.stringify(extractionData),
-          nonConformities: JSON.stringify(nonConformities),
+          extractionData: extractionData,
+          nonConformities: nonConformities,
         },
       });
 

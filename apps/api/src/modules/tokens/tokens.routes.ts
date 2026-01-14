@@ -72,6 +72,9 @@ tokenRoutes.use('*', requireAuth);
 tokenRoutes.get('/balance', async (c) => {
   try {
     const user = c.get('user');
+    if (!user.companyId) {
+      return c.json({ error: 'Forbidden', message: 'Company association required' }, 403);
+    }
     const balance = await getTokenBalance(user.companyId);
     return c.json({ balance });
   } catch (error) {
@@ -84,6 +87,9 @@ tokenRoutes.get('/balance', async (c) => {
 tokenRoutes.get('/transactions', async (c) => {
   try {
     const user = c.get('user');
+    if (!user.companyId) {
+      return c.json({ error: 'Forbidden', message: 'Company association required' }, 403);
+    }
     const limit = parseInt(c.req.query('limit') || '50');
     const offset = parseInt(c.req.query('offset') || '0');
 
@@ -119,6 +125,10 @@ const purchaseSchema = z.object({
 tokenRoutes.post('/purchase', requireRole('ADMIN'), async (c) => {
   try {
     const user = c.get('user');
+    if (!user.companyId) {
+      return c.json({ error: 'Forbidden', message: 'Company association required' }, 403);
+    }
+
     const body = await c.req.json();
 
     const validation = purchaseSchema.safeParse(body);

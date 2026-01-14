@@ -47,7 +47,7 @@ export async function login(email: string, password: string): Promise<LoginResul
   const tokenPayload: TokenPayload = {
     userId: user.id,
     email: user.email,
-    role: user.role,
+    role: user.role as 'SUPER_ADMIN' | 'ADMIN' | 'ANALYST',
     companyId: user.companyId,
   };
 
@@ -59,7 +59,7 @@ export async function login(email: string, password: string): Promise<LoginResul
       id: user.id,
       email: user.email,
       name: user.name,
-      role: user.role,
+      role: user.role as 'SUPER_ADMIN' | 'ADMIN' | 'ANALYST',
       companyId: user.companyId,
     },
   };

@@ -1,12 +1,12 @@
 // Prisma schema for AuditEng
-// SQLite for development, PostgreSQL for production
+// PostgreSQL for production
 
 generator client {
   provider = "prisma-client-js"
 }
 
 datasource db {
-  provider = "sqlite"
+  provider = "postgresql"
   url      = env("DATABASE_URL")
 }
 
@@ -51,6 +51,8 @@ model User {
   invitationsSent   Invitation[]       @relation("InvitedBy")
   auditLogs         AuditLog[]
 
+  @@index([email])
+  @@index([companyId])
   @@map("users")
 }
 
@@ -70,6 +72,9 @@ model Invitation {
   company   Company @relation(fields: [companyId], references: [id], onDelete: Cascade)
   invitedBy User    @relation("InvitedBy", fields: [invitedById], references: [id])
 
+  @@index([token])
+  @@index([companyId])
+  @@index([expiresAt])
   @@map("invitations")
 }
 
@@ -88,8 +93,8 @@ model Analysis {
   overallConfidence Float?
   tokensConsumed    Int       @default(0)
   processingTimeMs  Int?
-  extractionData    String?   // JSON stored as text
-  nonConformities   String?   // JSON stored as text
+  extractionData    Json?     // Native PostgreSQL JSONB
+  nonConformities   Json?     // Native PostgreSQL JSONB
   requiresReview    Boolean   @default(false)
   standardUsed      String    // NETA or MICROSOFT
   createdAt         DateTime  @default(now())
@@ -102,6 +107,7 @@ model Analysis {
 
   @@index([companyId, createdAt])
   @@index([userId, createdAt])
+  @@index([status])
   @@map("analyses")
 }
 
@@ -114,8 +120,8 @@ model TokenTransaction {
   amount          Int      // Positive for credit, negative for debit
   balance         Int      // Balance after transaction
   analysisId      String?
-  stripeSessionId String?
-  packageName     String?
+  stripeSessionId String?  // For future Stripe integration
+  packageName     String?  // For future billing
   description     String
   createdAt       DateTime @default(now())
 
@@ -125,6 +131,7 @@ model TokenTransaction {
   analysis Analysis? @relation(fields: [analysisId], references: [id], onDelete: SetNull)
 
   @@index([companyId, createdAt])
+  @@index([type])
   @@map("token_transactions")
 }
 
@@ -136,7 +143,7 @@ model AuditLog {
   action     String
   entityType String
   entityId   String
-  details    String?  // JSON stored as text
+  details    Json?    // Native PostgreSQL JSONB
   ipAddress  String?
   createdAt  DateTime @default(now())
 
@@ -146,5 +153,7 @@ model AuditLog {
 
   @@index([companyId, createdAt])
   @@index([userId, createdAt])
+  @@index([action])
+  @@index([entityType, entityId])
   @@map("audit_logs")
 }

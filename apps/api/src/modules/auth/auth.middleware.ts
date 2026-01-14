@@ -26,7 +26,7 @@ export async function requireAuth(c: Context, next: Next) {
   // Attach user to context
   c.set('user', payload);
 
-  await next();
+  return next();
 }
 
 // Middleware to require specific roles
@@ -42,7 +42,7 @@ export function requireRole(...roles: Array<'SUPER_ADMIN' | 'ADMIN' | 'ANALYST'>
       return c.json({ error: 'Forbidden', message: 'Insufficient permissions' }, 403);
     }
 
-    await next();
+    return next();
   };
 }
 

@@ -57,6 +57,10 @@ userRoutes.get('/me', requireAuth, async (c) => {
 userRoutes.patch('/me', requireAuth, async (c) => {
   try {
     const tokenUser = c.get('user');
+    if (!tokenUser.companyId) {
+      return c.json({ error: 'Forbidden', message: 'Company association required' }, 403);
+    }
+
     const ipAddress = getClientIp(c);
     const body = await c.req.json();
 
@@ -139,6 +143,10 @@ userRoutes.put('/:id', requireAuth, async (c) => {
         { error: 'Validation Error', message: validation.error.issues[0].message },
         400
       );
+    }
+
+    if (!tokenUser.companyId) {
+      return c.json({ error: 'Forbidden', message: 'Company association required' }, 403);
     }
 
     const updatedUser = await updateUser(id, tokenUser.companyId, validation.data);
