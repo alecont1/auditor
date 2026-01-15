@@ -25,4 +25,4 @@ export {
   // Versioning
   PROMPT_VERSIONS,
   getPromptMetadata,
-} from './thermography-extraction.prompts';
+} from './thermography-extraction.prompts.js';

@@ -15,7 +15,7 @@ import {
   type ExtractorLogger,
   validateImageInput,
   prepareImageForAPI,
-} from './base-extractor';
+} from './base-extractor.js';
 
 import type {
   ThermographyImageExtraction,
@@ -27,7 +27,7 @@ import type {
   ExtractedField,
   CalibrationCertificateExtraction,
   ThermographyExtractionResult,
-} from '../types/vision-extraction.types';
+} from '../types/vision-extraction.types.js';
 
 import {
   THERMAL_IMAGE_SYSTEM_PROMPT,
@@ -37,7 +37,7 @@ import {
   buildVisiblePhotoUserPrompt,
   buildCertificateUserPrompt,
   THERMAL_IMAGE_FEW_SHOT_EXAMPLE,
-} from '../prompts/thermography-extraction.prompts';
+} from '../prompts/thermography-extraction.prompts.js';
 
 // =============================================================================
 // TYPES

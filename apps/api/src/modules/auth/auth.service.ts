@@ -1,6 +1,6 @@
-import { prisma } from '../../lib/prisma';
-import { createToken, TokenPayload } from '../../lib/jwt';
-import { verifyPassword, hashPassword, validatePassword } from '../../lib/password';
+import { prisma } from '../../lib/prisma.js';
+import { createToken, TokenPayload } from '../../lib/jwt.js';
+import { verifyPassword, hashPassword, validatePassword } from '../../lib/password.js';
 
 export interface LoginResult {
   token: string;

@@ -1,6 +1,7 @@
-import { prisma } from '../../lib/prisma';
-import { consumeTokens } from '../tokens/tokens.service';
-import { validarCruzado, converterParaDadosExtraidos } from '../ai/validators/cross-validator';
+import { prisma } from '../../lib/prisma.js';
+import { consumeTokens } from '../tokens/tokens.service.js';
+import { validarCruzado, converterParaDadosExtraidos } from '../ai/validators/cross-validator.js';
+import { getRAGService } from '../rag/index.js';
 
 /**
  * Compare two dates in a timezone-neutral way (date-only comparison).
@@ -843,6 +844,18 @@ export async function simulateProcessing(analysisId: string) {
         // Analysis still completed, but tokens weren't consumed
         // In production, this would need better handling
       }
+
+      // Index completed analysis for RAG/Loop Learning (async, non-blocking)
+      indexAnalysisForRAG(
+        analysisId,
+        analysis.testType as 'GROUNDING' | 'MEGGER' | 'THERMOGRAPHY',
+        finalVerdict,
+        extractionData,
+        nonConformities,
+        analysis.companyId
+      ).catch(err => {
+        console.error('RAG indexing failed (non-critical):', err);
+      });
     } catch (error) {
       console.error('Error updating analysis status:', error);
       // Mark as failed if update fails
@@ -918,4 +931,111 @@ export async function getAnalysisById(
   });
 
   return analysis;
+}
+
+// =============================================================================
+// RAG / LOOP LEARNING INTEGRATION
+// =============================================================================
+
+/**
+ * Index a completed analysis for RAG-based loop learning.
+ * This allows the system to learn from past analyses and improve future ones.
+ */
+async function indexAnalysisForRAG(
+  analysisId: string,
+  testType: 'GROUNDING' | 'MEGGER' | 'THERMOGRAPHY',
+  verdict: 'APPROVED' | 'APPROVED_WITH_COMMENTS' | 'REJECTED',
+  extractionData: Record<string, any>,
+  nonConformities: Array<{
+    code: string;
+    severity: string;
+    description: string;
+    evidence: string;
+  }>,
+  companyId: string
+): Promise<void> {
+  try {
+    const ragService = getRAGService();
+
+    const result = await ragService.indexAnalysis({
+      analysisId,
+      testType,
+      verdict,
+      extractionData,
+      nonConformities,
+      companyId,
+    });
+
+    if (result.success) {
+      console.log(`Indexed analysis ${analysisId} for RAG (embedding: ${result.embeddingId})`);
+    } else {
+      console.warn(`Failed to index analysis ${analysisId}: ${result.error}`);
+    }
+  } catch (error) {
+    // Non-critical error - don't fail the analysis
+    console.error('RAG indexing error:', error);
+  }
+}
+
+/**
+ * Submit user feedback/correction for an analysis.
+ * This is used for loop learning - corrections improve future analyses.
+ */
+export async function submitAnalysisFeedback(
+  analysisId: string,
+  userId: string,
+  companyId: string,
+  feedbackType: 'VERDICT_CORRECTION' | 'FIELD_CORRECTION' | 'FALSE_POSITIVE' | 'FALSE_NEGATIVE',
+  originalValue: Record<string, any>,
+  correctedValue: Record<string, any>,
+  explanation?: string
+): Promise<{ success: boolean; feedbackId?: string; error?: string }> {
+  try {
+    // Get the analysis to verify access and get testType
+    const analysis = await prisma.analysis.findFirst({
+      where: { id: analysisId, companyId },
+      select: { testType: true },
+    });
+
+    if (!analysis) {
+      return { success: false, error: 'Analysis not found' };
+    }
+
+    // Store feedback in database
+    const feedback = await prisma.analysisFeedback.create({
+      data: {
+        analysisId,
+        userId,
+        companyId,
+        feedbackType,
+        originalValue,
+        correctedValue,
+        explanation,
+      },
+    });
+
+    // Index the correction for RAG (async, non-blocking)
+    const ragService = getRAGService();
+    ragService.indexCorrection(
+      analysisId,
+      companyId,
+      analysis.testType,
+      originalValue,
+      correctedValue,
+      explanation
+    ).then(result => {
+      if (result.success) {
+        // Mark feedback as incorporated
+        prisma.analysisFeedback.update({
+          where: { id: feedback.id },
+          data: { incorporated: true, incorporatedAt: new Date() },
+        }).catch(console.error);
+      }
+    }).catch(console.error);
+
+    return { success: true, feedbackId: feedback.id };
+  } catch (error: any) {
+    console.error('Failed to submit feedback:', error);
+    return { success: false, error: error.message };
+  }
 }

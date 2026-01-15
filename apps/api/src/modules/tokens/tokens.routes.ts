@@ -1,8 +1,8 @@
 import { Hono } from 'hono';
 import { z } from 'zod';
-import { requireAuth, requireRole } from '../auth/auth.middleware';
-import { getTokenBalance, getTransactionHistory, addTokens } from './tokens.service';
-import { stripe, isStripeConfigured, PACKAGES, isValidPackageId } from '../../lib/stripe';
+import { requireAuth, requireRole } from '../auth/auth.middleware.js';
+import { getTokenBalance, getTransactionHistory, addTokens } from './tokens.service.js';
+import { stripe, isStripeConfigured, PACKAGES, isValidPackageId } from '../../lib/stripe.js';
 
 export const tokenRoutes = new Hono();
 

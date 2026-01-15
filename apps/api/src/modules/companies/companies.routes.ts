@@ -1,6 +1,6 @@
 import { Hono } from 'hono';
 import { z } from 'zod';
-import { requireAuth, requireRole } from '../auth/auth.middleware';
+import { requireAuth, requireRole } from '../auth/auth.middleware.js';
 import {
   getAllCompanies,
   getCompanyById,
@@ -8,8 +8,8 @@ import {
   updateCompany,
   deleteCompanyWithPasswordConfirmation,
   createFirstAdmin,
-} from './companies.service';
-import { hashPassword } from '../../lib/password';
+} from './companies.service.js';
+import { hashPassword } from '../../lib/password.js';
 
 export const companyRoutes = new Hono();
 

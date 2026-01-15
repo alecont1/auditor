@@ -1,4 +1,4 @@
-import { prisma } from '../../lib/prisma';
+import { prisma } from '../../lib/prisma.js';
 import { randomBytes } from 'crypto';
 
 export interface UserListItem {
@@ -41,7 +41,7 @@ export async function getUsersByCompanyId(companyId: string): Promise<UserListIt
 
   // Combine users and pending invitations
   const userList: UserListItem[] = [
-    ...users.map((user) => ({
+    ...users.map((user: typeof users[number]) => ({
       id: user.id,
       email: user.email,
       name: user.name,
@@ -49,7 +49,7 @@ export async function getUsersByCompanyId(companyId: string): Promise<UserListIt
       status: 'ACTIVE' as const,
       createdAt: user.createdAt,
     })),
-    ...pendingInvitations.map((inv) => ({
+    ...pendingInvitations.map((inv: typeof pendingInvitations[number]) => ({
       id: inv.id,
       email: inv.email,
       name: null,

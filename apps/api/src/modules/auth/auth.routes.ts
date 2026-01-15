@@ -1,8 +1,8 @@
 import { Hono } from 'hono';
 import { z } from 'zod';
-import { login, changePassword, acceptInvitation, validateInvitationToken } from './auth.service';
-import { requireAuth } from './auth.middleware';
-import { logAudit, getClientIp } from '../../lib/audit-log';
+import { login, changePassword, acceptInvitation, validateInvitationToken } from './auth.service.js';
+import { requireAuth } from './auth.middleware.js';
+import { logAudit, getClientIp } from '../../lib/audit-log.js';
 
 export const authRoutes = new Hono();
 

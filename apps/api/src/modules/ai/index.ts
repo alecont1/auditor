@@ -32,7 +32,7 @@ export {
   ThermographyBatchExtractor,
   createThermographyExtractor,
   createBatchExtractor,
-} from './extractors';
+} from './extractors/index.js';
 
 export type {
   ExtractorConfig,
@@ -43,7 +43,7 @@ export type {
   OpenAIResponse,
   ThermographyExtractionInput,
   BatchThermographyInput,
-} from './extractors';
+} from './extractors/index.js';
 
 // =============================================================================
 // PROMPTS
@@ -67,7 +67,7 @@ export {
   // Versioning
   PROMPT_VERSIONS,
   getPromptMetadata,
-} from './prompts';
+} from './prompts/index.js';
 
 // =============================================================================
 // TYPES
@@ -97,7 +97,7 @@ export type {
   VisionExtractionResponse,
   BatchExtractionRequest,
   BatchExtractionResponse,
-} from './types';
+} from './types/index.js';
 
 // =============================================================================
 // VALIDATORS
@@ -107,4 +107,4 @@ export {
   validarCruzado,
   gerarResultadoValidacao,
   converterParaDadosExtraidos,
-} from './validators/cross-validator';
+} from './validators/cross-validator.js';

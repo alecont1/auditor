@@ -1,5 +1,5 @@
-import { prisma } from '../../lib/prisma';
-import { verifyPassword } from '../../lib/password';
+import { prisma } from '../../lib/prisma.js';
+import { verifyPassword } from '../../lib/password.js';
 
 export interface Company {
   id: string;

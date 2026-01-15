@@ -13,7 +13,7 @@ export {
   prepareImageForAPI,
   estimateTokenCount,
   estimateImageTokens,
-} from './base-extractor';
+} from './base-extractor.js';
 
 export type {
   ExtractorConfig,
@@ -22,7 +22,7 @@ export type {
   ChatMessage,
   ChatMessageContent,
   OpenAIResponse,
-} from './base-extractor';
+} from './base-extractor.js';
 
 // Thermography extractors
 export {
@@ -32,12 +32,12 @@ export {
   ThermographyBatchExtractor,
   createThermographyExtractor,
   createBatchExtractor,
-} from './thermography-extractor';
+} from './thermography-extractor.js';
 
 export type {
   ThermographyExtractionInput,
   BatchThermographyInput,
-} from './thermography-extractor';
+} from './thermography-extractor.js';
 
 // Claude Vision Extractor (real API integration)
 export {
@@ -45,9 +45,9 @@ export {
   extractFromMultipleImages,
   extractFromPDFPages,
   toValidatorFormat,
-} from './claude-extractor';
+} from './claude-extractor.js';
 
 export type {
   ExtractionResult,
   ImageType,
-} from './claude-extractor';
+} from './claude-extractor.js';

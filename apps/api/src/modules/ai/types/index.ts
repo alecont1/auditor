@@ -13,7 +13,7 @@ export type {
   MedicaoData,
   DadosExtraidos,
   ResultadoValidacao,
-} from './extraction.types';
+} from './extraction.types.js';
 
 // Vision extraction types (new)
 export type {
@@ -39,4 +39,4 @@ export type {
   VisionExtractionResponse,
   BatchExtractionRequest,
   BatchExtractionResponse,
-} from './vision-extraction.types';
+} from './vision-extraction.types.js';

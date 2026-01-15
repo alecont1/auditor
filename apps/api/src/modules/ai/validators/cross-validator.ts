@@ -1,4 +1,4 @@
-import type { DadosExtraidos, Inconsistencia, ResultadoValidacao } from '../types/extraction.types';
+import type { DadosExtraidos, Inconsistencia, ResultadoValidacao } from '../types/extraction.types.js';
 
 /**
  * Normaliza serial removendo espaços, hifens e convertendo para uppercase

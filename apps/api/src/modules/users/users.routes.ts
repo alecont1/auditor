@@ -1,9 +1,9 @@
 import { Hono } from 'hono';
 import { z } from 'zod';
-import { requireAuth, requireRole } from '../auth/auth.middleware';
-import { getUserById } from '../auth/auth.service';
-import { getUsersByCompanyId, createInvitation, deleteUser, updateUser } from './users.service';
-import { logAudit, getClientIp } from '../../lib/audit-log';
+import { requireAuth, requireRole } from '../auth/auth.middleware.js';
+import { getUserById } from '../auth/auth.service.js';
+import { getUsersByCompanyId, createInvitation, deleteUser, updateUser } from './users.service.js';
+import { logAudit, getClientIp } from '../../lib/audit-log.js';
 
 export const userRoutes = new Hono();
 

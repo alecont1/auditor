@@ -1,7 +1,7 @@
 import { Hono } from 'hono';
-import { requireAuth, requireRole } from '../auth/auth.middleware';
-import { getUserById } from '../auth/auth.service';
-import { getAuditLogs } from '../../lib/audit-log';
+import { requireAuth, requireRole } from '../auth/auth.middleware.js';
+import { getUserById } from '../auth/auth.service.js';
+import { getAuditLogs } from '../../lib/audit-log.js';
 
 export const auditRoutes = new Hono();
 

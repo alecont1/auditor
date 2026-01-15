@@ -1,13 +1,15 @@
 // Prisma schema for AuditEng
-// PostgreSQL for production
+// PostgreSQL for production with pgvector for RAG
 
 generator client {
-  provider = "prisma-client-js"
+  provider        = "prisma-client-js"
+  previewFeatures = ["postgresqlExtensions"]
 }
 
 datasource db {
-  provider = "postgresql"
-  url      = env("DATABASE_URL")
+  provider   = "postgresql"
+  url        = env("DATABASE_URL")
+  extensions = [vector]
 }
 
 // Company/Tenant model
@@ -22,11 +24,13 @@ model Company {
   updatedAt       DateTime @updatedAt
 
   // Relations
-  users             User[]
-  invitations       Invitation[]
-  analyses          Analysis[]
-  tokenTransactions TokenTransaction[]
-  auditLogs         AuditLog[]
+  users               User[]
+  invitations         Invitation[]
+  analyses            Analysis[]
+  tokenTransactions   TokenTransaction[]
+  auditLogs           AuditLog[]
+  knowledgeEmbeddings KnowledgeEmbedding[]
+  analysisFeedback    AnalysisFeedback[]
 
   @@map("companies")
 }
@@ -50,6 +54,7 @@ model User {
   tokenTransactions TokenTransaction[]
   invitationsSent   Invitation[]       @relation("InvitedBy")
   auditLogs         AuditLog[]
+  analysisFeedback  AnalysisFeedback[]
 
   @@index([email])
   @@index([companyId])
@@ -101,9 +106,11 @@ model Analysis {
   completedAt       DateTime?
 
   // Relations
-  company           Company            @relation(fields: [companyId], references: [id], onDelete: Cascade)
-  user              User               @relation(fields: [userId], references: [id])
-  tokenTransactions TokenTransaction[]
+  company             Company              @relation(fields: [companyId], references: [id], onDelete: Cascade)
+  user                User                 @relation(fields: [userId], references: [id])
+  tokenTransactions   TokenTransaction[]
+  knowledgeEmbeddings KnowledgeEmbedding[]
+  feedback            AnalysisFeedback[]
 
   @@index([companyId, createdAt])
   @@index([userId, createdAt])
@@ -156,4 +163,84 @@ model AuditLog {
   @@index([action])
   @@index([entityType, entityId])
   @@map("audit_logs")
+}
+
+// =============================================================================
+// RAG / LOOP LEARNING MODELS
+// =============================================================================
+
+// Knowledge embeddings for RAG-based loop learning
+// Stores vector embeddings of analysis results for semantic search
+model KnowledgeEmbedding {
+  id          String   @id @default(uuid())
+  companyId   String?  // null = global knowledge (standards, best practices)
+  analysisId  String?  // Reference to source analysis if applicable
+
+  // Content metadata
+  contentType String   // ANALYSIS_RESULT, MANUAL_CORRECTION, TECHNICAL_STANDARD, BEST_PRACTICE
+  testType    String?  // GROUNDING, MEGGER, THERMOGRAPHY
+  verdict     String?  // APPROVED, APPROVED_WITH_COMMENTS, REJECTED
+
+  // The actual content that was embedded
+  content     String   @db.Text
+
+  // Embedding vector (1024 dimensions for voyage-3-lite)
+  // Using Unsupported type as Prisma doesn't have native vector support yet
+  // Will be handled via raw SQL for similarity search
+  embedding   Unsupported("vector(1024)")?
+
+  // Metadata for filtering
+  metadata    Json?    // Additional searchable metadata
+
+  // Quality signals for loop learning
+  wasCorrect  Boolean  @default(true) // Was the original analysis correct?
+  useCount    Int      @default(0)     // How many times was this used as context?
+
+  createdAt   DateTime @default(now())
+  updatedAt   DateTime @updatedAt
+
+  // Relations
+  company     Company?  @relation(fields: [companyId], references: [id], onDelete: Cascade)
+  analysis    Analysis? @relation(fields: [analysisId], references: [id], onDelete: SetNull)
+
+  @@index([companyId, testType])
+  @@index([contentType])
+  @@index([verdict])
+  @@index([createdAt])
+  @@map("knowledge_embeddings")
+}
+
+// Manual corrections/feedback from users for loop learning
+model AnalysisFeedback {
+  id          String   @id @default(uuid())
+  analysisId  String
+  userId      String
+  companyId   String
+
+  // What was corrected
+  feedbackType String  // VERDICT_CORRECTION, FIELD_CORRECTION, FALSE_POSITIVE, FALSE_NEGATIVE
+
+  // Original vs corrected values
+  originalValue Json   // The original AI output
+  correctedValue Json  // The user's correction
+
+  // User's explanation (important for learning)
+  explanation String?  @db.Text
+
+  // Was this feedback incorporated into the knowledge base?
+  incorporated Boolean @default(false)
+  incorporatedAt DateTime?
+
+  createdAt   DateTime @default(now())
+
+  // Relations
+  analysis    Analysis @relation(fields: [analysisId], references: [id], onDelete: Cascade)
+  user        User     @relation(fields: [userId], references: [id])
+  company     Company  @relation(fields: [companyId], references: [id], onDelete: Cascade)
+
+  @@index([analysisId])
+  @@index([companyId, createdAt])
+  @@index([feedbackType])
+  @@index([incorporated])
+  @@map("analysis_feedback")
 }

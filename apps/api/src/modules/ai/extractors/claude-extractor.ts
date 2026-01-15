@@ -5,7 +5,7 @@
  */
 
 import Anthropic from '@anthropic-ai/sdk';
-import { THERMAL_IMAGE_SYSTEM_PROMPT, VISIBLE_PHOTO_SYSTEM_PROMPT, CERTIFICATE_SYSTEM_PROMPT } from '../prompts/thermography-extraction.prompts';
+import { THERMAL_IMAGE_SYSTEM_PROMPT, VISIBLE_PHOTO_SYSTEM_PROMPT, CERTIFICATE_SYSTEM_PROMPT } from '../prompts/thermography-extraction.prompts.js';
 
 // Lazy initialization to allow env to be loaded first
 let anthropicClient: Anthropic | null = null;

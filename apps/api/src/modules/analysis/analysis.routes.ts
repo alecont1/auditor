@@ -1,12 +1,12 @@
 import { Hono } from 'hono';
 import { Context } from 'hono';
 import { z } from 'zod';
-import { requireAuth } from '../auth/auth.middleware';
-import { prisma, Prisma } from '../../lib/prisma';
-import { createAnalysis, simulateProcessing, getChunkingInfo } from './analysis.service';
-import { getTokenBalance } from '../tokens/tokens.service';
-import { analysisRateLimiter } from '../../lib/rate-limiter';
-import { logAudit, getClientIp } from '../../lib/audit-log';
+import { requireAuth } from '../auth/auth.middleware.js';
+import { prisma, Prisma } from '../../lib/prisma.js';
+import { createAnalysis, simulateProcessing, getChunkingInfo, submitAnalysisFeedback } from './analysis.service.js';
+import { getTokenBalance } from '../tokens/tokens.service.js';
+import { analysisRateLimiter } from '../../lib/rate-limiter.js';
+import { logAudit, getClientIp } from '../../lib/audit-log.js';
 
 // Alias for clarity in reanalyze endpoint
 const simulateReprocessing = simulateProcessing;
@@ -163,7 +163,7 @@ analysisRoutes.get('/stats', async (c) => {
 
   // Calculate approval rate
   const approvedCount = completedAnalyses.filter(
-    (a) => a.verdict === 'APPROVED' || a.verdict === 'APPROVED_WITH_COMMENTS'
+    (a: { verdict: string | null; processingTimeMs: number | null }) => a.verdict === 'APPROVED' || a.verdict === 'APPROVED_WITH_COMMENTS'
   ).length;
   const approvalRate = completedAnalyses.length > 0
     ? Math.round((approvedCount / completedAnalyses.length) * 100)
@@ -171,10 +171,10 @@ analysisRoutes.get('/stats', async (c) => {
 
   // Calculate average processing time
   const processingTimes = completedAnalyses
-    .filter((a) => a.processingTimeMs !== null)
-    .map((a) => a.processingTimeMs!);
+    .filter((a: { verdict: string | null; processingTimeMs: number | null }) => a.processingTimeMs !== null)
+    .map((a: { verdict: string | null; processingTimeMs: number | null }) => a.processingTimeMs!);
   const avgProcessingTime = processingTimes.length > 0
-    ? Math.round(processingTimes.reduce((a, b) => a + b, 0) / processingTimes.length / 1000)
+    ? Math.round(processingTimes.reduce((a: number, b: number) => a + b, 0) / processingTimes.length / 1000)
     : null;
 
   // Get company token balance
@@ -580,7 +580,7 @@ analysisRoutes.post('/bulk-export', async (c) => {
         ['ID', 'Filename', 'Test Type', 'Status', 'Verdict', 'Score', 'Confidence', 'Standard', 'Tokens', 'Processing Time (ms)', 'Created At', 'Completed At', 'Created By', 'Company'],
       ];
 
-      analysesWithRelations.forEach((analysis) => {
+      analysesWithRelations.forEach((analysis: typeof analysesWithRelations[number]) => {
         csvRows.push([
           analysis.id,
           analysis.filename,
@@ -610,7 +610,7 @@ analysisRoutes.post('/bulk-export', async (c) => {
     const exportData = {
       exportedAt: new Date().toISOString(),
       count: analysesWithRelations.length,
-      analyses: analysesWithRelations.map((analysis) => ({
+      analyses: analysesWithRelations.map((analysis: typeof analysesWithRelations[number]) => ({
         id: analysis.id,
         filename: analysis.filename,
         testType: analysis.testType,
@@ -669,4 +669,112 @@ analysisRoutes.delete('/:id', async (c) => {
   });
 
   return c.json({ message: `Analysis ${id} deleted` });
+});
+
+// =============================================================================
+// FEEDBACK / LOOP LEARNING ENDPOINTS
+// =============================================================================
+
+const feedbackSchema = z.object({
+  feedbackType: z.enum(['VERDICT_CORRECTION', 'FIELD_CORRECTION', 'FALSE_POSITIVE', 'FALSE_NEGATIVE']),
+  originalValue: z.record(z.any()),
+  correctedValue: z.record(z.any()),
+  explanation: z.string().optional(),
+});
+
+// POST /api/analysis/:id/feedback - Submit feedback for loop learning
+analysisRoutes.post('/:id/feedback', async (c) => {
+  const id = c.req.param('id');
+  const user = c.get('user');
+  const companyId = requireCompanyId(c);
+
+  if (!companyId) {
+    return c.json({ error: 'Forbidden', message: 'Company association required' }, 403);
+  }
+
+  try {
+    const body = await c.req.json();
+    const validation = feedbackSchema.safeParse(body);
+
+    if (!validation.success) {
+      return c.json(
+        { error: 'Validation Error', message: validation.error.issues[0].message },
+        400
+      );
+    }
+
+    const result = await submitAnalysisFeedback(
+      id,
+      user.userId,
+      companyId,
+      validation.data.feedbackType,
+      validation.data.originalValue,
+      validation.data.correctedValue,
+      validation.data.explanation
+    );
+
+    if (!result.success) {
+      return c.json({ error: 'Error', message: result.error }, 400);
+    }
+
+    // Log feedback submission
+    const ipAddress = getClientIp(c);
+    await logAudit({
+      userId: user.userId,
+      companyId,
+      action: 'FEEDBACK_SUBMITTED',
+      entityType: 'ANALYSIS',
+      entityId: id,
+      details: {
+        feedbackType: validation.data.feedbackType,
+        feedbackId: result.feedbackId,
+      },
+      ipAddress,
+    });
+
+    return c.json({
+      success: true,
+      message: 'Feedback submitted successfully. This will help improve future analyses.',
+      feedbackId: result.feedbackId,
+    }, 201);
+  } catch (error) {
+    console.error('Feedback submission error:', error);
+    return c.json({ error: 'Server Error', message: 'Failed to submit feedback' }, 500);
+  }
+});
+
+// GET /api/analysis/:id/feedback - Get feedback history for an analysis
+analysisRoutes.get('/:id/feedback', async (c) => {
+  const id = c.req.param('id');
+  const companyId = requireCompanyId(c);
+
+  if (!companyId) {
+    return c.json({ error: 'Forbidden', message: 'Company association required' }, 403);
+  }
+
+  // Verify analysis belongs to company
+  const analysis = await prisma.analysis.findFirst({
+    where: { id, companyId },
+    select: { id: true },
+  });
+
+  if (!analysis) {
+    return c.json({ error: 'Not Found', message: 'Analysis not found' }, 404);
+  }
+
+  const feedback = await prisma.analysisFeedback.findMany({
+    where: { analysisId: id, companyId },
+    orderBy: { createdAt: 'desc' },
+    include: {
+      user: {
+        select: {
+          id: true,
+          name: true,
+          email: true,
+        },
+      },
+    },
+  });
+
+  return c.json({ feedback });
 });

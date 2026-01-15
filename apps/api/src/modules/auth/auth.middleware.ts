@@ -1,5 +1,5 @@
 import { Context, Next } from 'hono';
-import { verifyToken, TokenPayload } from '../../lib/jwt';
+import { verifyToken, TokenPayload } from '../../lib/jwt.js';
 
 // Extend Hono's context to include the user
 declare module 'hono' {
